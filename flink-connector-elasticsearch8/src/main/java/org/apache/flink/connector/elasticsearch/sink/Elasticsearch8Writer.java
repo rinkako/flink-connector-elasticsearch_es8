@@ -22,22 +22,29 @@
 package org.apache.flink.connector.elasticsearch.sink;
 
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient;
+import co.elastic.clients.elasticsearch._helpers.bulk.BulkIngester;
+import co.elastic.clients.elasticsearch._helpers.bulk.BulkListener;
 import co.elastic.clients.elasticsearch.core.BulkRequest;
-import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
+import co.elastic.clients.elasticsearch.core.BulkResponse;
+import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
+
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
+
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
+
 import org.apache.http.HttpHost;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operation> {
-    private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchWriter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch8Writer.class);
 
     private final ElasticsearchAsyncClient esClient;
 
@@ -74,39 +81,39 @@ public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operat
     protected void submitRequestEntries(List<Operation> requestEntries, Consumer<List<Operation>> requestResult) {
         LOG.info("submitRequestEntries with {} items", requestEntries.size());
 
-        BulkRequest.Builder bulkRequest = new BulkRequest.Builder();
+        BulkListener<Operation> listener = new BulkListener<Operation>() {
+            @Override
+            public void beforeBulk(long executionId, BulkRequest request, List<Operation> contexts) {}
 
-        ArrayList<BulkOperation> bulkOperations = requestEntries.stream()
-            .map(Operation::getBulkOperation)
-            .collect(Collectors.toCollection(ArrayList::new));
+            @Override
+            public void afterBulk(long executionId, BulkRequest request, List<Operation> contexts, BulkResponse response) {
+                LOG.debug("Bulk request " + executionId + " completed");
 
-        /**
-         * Unfortunately, Elasticsearch Client doesn't support
-         * retries yet nor does a way to see a failed operation;
-         *
-         * @see https://github.com/elastic/elasticsearch-java/issues/356
-         */
-        esClient.bulk(bulkRequest.operations(bulkOperations).build())
-            .whenComplete((response, exception) -> {
-                // All batch have failed
-                if (exception != null) {
-                    requestResult.accept(requestEntries);
-                    LOG.error("The batch has failed", exception);
-
-                    // A few batch items have failed
-                } else if (response.errors()) {
-                    response.items().stream()
-                        .filter(item -> item.error() != null)
-                        .forEach(item -> LOG.error("Failed item: {}", item));
-
-                    requestResult.accept(Collections.emptyList());
-
-                    // The whole batch was written successfully
-                } else {
-                    LOG.info("Bulk succeed with {} items in {}", requestEntries.size(), response.took());
-                    requestResult.accept(Collections.emptyList());
+                for (int i = 0; i < contexts.size(); i++) {
+                    BulkResponseItem item = response.items().get(i);
+                    if (item.error() != null) {
+                        LOG.error("Failed to index file " + contexts.get(i) + " - " + item.error().reason());
+                    }
                 }
-            });
+
+                requestResult.accept(Collections.emptyList());
+            }
+
+            @Override
+            public void afterBulk(long executionId, BulkRequest request, List<Operation> contexts, Throwable failure) {
+                LOG.debug("Bulk request " + executionId + " failed", failure);
+                requestResult.accept(requestEntries);
+            }
+        };
+
+        try (BulkIngester<Operation> ingester = BulkIngester.of(b -> b
+            .client(esClient)
+            .listener(listener)
+        )) {
+            for (Operation operation : requestEntries) {
+                ingester.add(operation.getBulkOperation());
+            }
+        }
     }
 
     @Override
