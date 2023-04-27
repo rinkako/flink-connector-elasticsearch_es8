@@ -26,6 +26,7 @@ import co.elastic.clients.elasticsearch._helpers.bulk.BulkIngester;
 import co.elastic.clients.elasticsearch._helpers.bulk.BulkListener;
 import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
+import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 
 import org.apache.flink.api.connector.sink2.Sink;
@@ -34,14 +35,14 @@ import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 
+import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
+
 import org.apache.http.HttpHost;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operation> {
     private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch8Writer.class);
@@ -65,12 +66,14 @@ public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operat
         super(
             elementConverter,
             context,
-            maxBatchSize,
-            maxInFlightRequests,
-            maxBufferedRequests,
-            maxBatchSizeInBytes,
-            maxTimeInBufferMS,
-            maxRecordSizeInBytes,
+            AsyncSinkWriterConfiguration.builder()
+                .setMaxBatchSize(maxBatchSize)
+                .setMaxBatchSizeInBytes(maxBatchSizeInBytes)
+                .setMaxInFlightRequests(maxInFlightRequests)
+                .setMaxBufferedRequests(maxBufferedRequests)
+                .setMaxTimeInBufferMS(maxTimeInBufferMS)
+                .setMaxRecordSizeInBytes(maxRecordSizeInBytes)
+                .build(),
             state
         );
 
@@ -79,7 +82,7 @@ public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operat
 
     @Override
     protected void submitRequestEntries(List<Operation> requestEntries, Consumer<List<Operation>> requestResult) {
-        LOG.info("submitRequestEntries with {} items", requestEntries.size());
+        LOG.debug("submitRequestEntries with {} items", requestEntries.size());
 
         BulkListener<Operation> listener = new BulkListener<Operation>() {
             @Override
@@ -88,15 +91,23 @@ public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operat
             @Override
             public void afterBulk(long executionId, BulkRequest request, List<Operation> contexts, BulkResponse response) {
                 LOG.debug("Bulk request " + executionId + " completed");
+                ArrayList<Operation> retriableEntries = new ArrayList<>();
 
                 for (int i = 0; i < contexts.size(); i++) {
                     BulkResponseItem item = response.items().get(i);
+                    Operation operation = contexts.get(i);
+
                     if (item.error() != null) {
-                        LOG.error("Failed to index file " + contexts.get(i) + " - " + item.error().reason());
+                        LOG.error("Failed operation " + operation + " - " + item.error().reason());
+                    }
+
+                    if (item.error() != null && operation.isRetriable()) {
+                        retriableEntries.add(operation);
+                        operation.retry();
                     }
                 }
 
-                requestResult.accept(Collections.emptyList());
+                requestResult.accept(retriableEntries);
             }
 
             @Override
@@ -111,7 +122,7 @@ public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operat
             .listener(listener)
         )) {
             for (Operation operation : requestEntries) {
-                ingester.add(operation.getBulkOperation());
+                ingester.add(new BulkOperation(operation.getBulkOperationVariant()), operation);
             }
         }
     }
