@@ -21,27 +21,31 @@
 
 package org.apache.flink.connector.elasticsearch.sink;
 
-import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperationVariant;
 
 import java.io.*;
 import java.util.Objects;
 
 public class Operation implements Serializable {
-    private final BulkOperation bulkOperation;
+    private final BulkOperationVariant bulkOperationVariant;
 
-    public Operation(BulkOperationVariant bulkOperationVariant) {
-        this.bulkOperation = bulkOperationVariant._toBulkOperation();
+    private int retries;
+
+    public Operation(BulkOperationVariant bulkOperation, int retries) {
+        this.bulkOperationVariant = bulkOperation;
+        this.retries = retries;
     }
 
-    public BulkOperation getBulkOperation() {
-        return bulkOperation;
+    public void retry() {
+        this.retries = this.retries - 1;
     }
 
-    @Override
-    public String toString() {
-        return "Operation{" +
-            "bulkOperation=" + bulkOperation._kind() + '}';
+    public boolean isRetriable() {
+        return this.retries > 0;
+    }
+
+    public BulkOperationVariant getBulkOperationVariant() {
+        return bulkOperationVariant;
     }
 
     @Override
@@ -49,11 +53,18 @@ public class Operation implements Serializable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Operation operation = (Operation) o;
-        return Objects.equals(bulkOperation._kind(), operation.bulkOperation._kind());
+        return Objects.equals(bulkOperationVariant, operation.bulkOperationVariant);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(bulkOperation);
+        return Objects.hash(bulkOperationVariant);
+    }
+
+    @Override
+    public String toString() {
+        return "Operation{" +
+            "bulkOperationVariant=" + bulkOperationVariant +
+            '}';
     }
 }
