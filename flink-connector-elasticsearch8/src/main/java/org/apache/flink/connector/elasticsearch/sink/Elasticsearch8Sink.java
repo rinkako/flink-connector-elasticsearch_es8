@@ -32,7 +32,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 public class Elasticsearch8Sink<InputT> extends AsyncSinkBase<InputT, Operation> {
-    private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSink.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch8Sink.class);
 
     private final String username;
 
@@ -91,8 +91,8 @@ public class Elasticsearch8Sink<InputT> extends AsyncSinkBase<InputT, Operation>
 
     @Override
     public StatefulSinkWriter<InputT, BufferedRequestState<Operation>> restoreWriter(
-            InitContext context,
-            Collection<BufferedRequestState<Operation>> recoveredState
+        InitContext context,
+        Collection<BufferedRequestState<Operation>> recoveredState
     ) {
         LOG.debug("restoring writer with {} items", recoveredState.size());
 
