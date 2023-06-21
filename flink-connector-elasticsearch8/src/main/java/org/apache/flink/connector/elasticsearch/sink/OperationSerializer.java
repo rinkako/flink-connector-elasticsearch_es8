@@ -39,22 +39,25 @@ public class OperationSerializer {
     }
 
     public void serialize(Operation request, DataOutputStream out) {
-        Output output = new Output(out);
-        kryo.writeObject(output, request);
-        output.flush();
+        try (Output output = new Output(out)) {
+            kryo.writeObject(output, request);
+            output.flush();
+        }
     }
 
     public Operation deserialize(long requestSize, DataInputStream in) {
-        Input input = new Input(in, (int) requestSize);
-        return kryo.readObject(input, Operation.class);
+        try (Input input = new Input(in, (int) requestSize)) {
+            return kryo.readObject(input, Operation.class);
+        }
     }
 
     public int size(Operation operation) {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        Output output = new Output(byteArrayOutputStream);
-        kryo.writeObject(output, operation);
-        output.flush();
+        try (Output output = new Output(byteArrayOutputStream)) {
+            kryo.writeObject(output, operation);
+            output.flush();
 
-        return (int) output.total();
+            return (int) output.total();
+        }
     }
 }
