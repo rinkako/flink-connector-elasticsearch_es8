@@ -22,14 +22,12 @@
 package org.apache.flink.connector.elasticsearch.sink;
 
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient;
-import co.elastic.clients.elasticsearch._helpers.bulk.BulkIngester;
-import co.elastic.clients.elasticsearch._helpers.bulk.BulkListener;
 import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
-import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 
 import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.connector.base.sink.throwable.FatalExceptionClassifier;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
@@ -41,6 +39,8 @@ import org.apache.http.HttpHost;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.ConnectException;
+import java.net.NoRouteToHostException;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -48,6 +48,17 @@ public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operat
     private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch8Writer.class);
 
     private final ElasticsearchAsyncClient esClient;
+
+    private static final FatalExceptionClassifier ELASTICSEARCH_FATAL_EXCEPTION_CLASSIFIER =
+        FatalExceptionClassifier.createChain(
+            new FatalExceptionClassifier(
+                err ->
+                    err instanceof NoRouteToHostException || err instanceof ConnectException,
+                err ->
+                    // @TODO choose an exception
+                    new Exception("Could not connect to Elasticsearch cluster using provided hosts", err)
+            )
+        );
 
     public Elasticsearch8Writer(
         ElementConverter<InputT, Operation> elementConverter,
@@ -84,47 +95,64 @@ public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operat
     protected void submitRequestEntries(List<Operation> requestEntries, Consumer<List<Operation>> requestResult) {
         LOG.debug("submitRequestEntries with {} items", requestEntries.size());
 
-        BulkListener<Operation> listener = new BulkListener<Operation>() {
-            @Override
-            public void beforeBulk(long executionId, BulkRequest request, List<Operation> contexts) {}
+        BulkRequest.Builder br = new BulkRequest.Builder();
+        for (Operation operation : requestEntries) {
+            br.operations(new BulkOperation(operation.getBulkOperationVariant()));
+        }
 
-            @Override
-            public void afterBulk(long executionId, BulkRequest request, List<Operation> contexts, BulkResponse response) {
-                LOG.debug("Bulk request " + executionId + " completed");
-                ArrayList<Operation> retriableEntries = new ArrayList<>();
+        esClient
+            .bulk(br.build())
+            .whenComplete(
+                (response, error) -> {
+                   if (error != null) {
+                       handleFailedRequest(requestEntries, requestResult, error);
+                   } else if (response.errors()) {
+                       handlePartiallyFailedRequest(requestEntries, requestResult, response);
+                   } else {
+                       handleSuccessfulRequest(requestResult, response);
+                   }
+            });
+    }
 
-                for (int i = 0; i < contexts.size(); i++) {
-                    BulkResponseItem item = response.items().get(i);
-                    Operation operation = contexts.get(i);
+    private void handleFailedRequest(
+        List<Operation> requestEntries,
+        Consumer<List<Operation>> requestResult,
+        Throwable error
+    ) {
+        LOG.debug("The BulkRequest of {} operation(s) has failed.", requestEntries.size());
 
-                    if (item.error() != null) {
-                        LOG.error("Failed operation " + operation + " - " + item.error().reason());
-                    }
+         if (isRetryable(error.getCause())) {
+             requestResult.accept(requestEntries);
+         }
+    }
 
-                    if (item.error() != null && operation.isRetriable()) {
-                        retriableEntries.add(operation);
-                        operation.retry();
-                    }
-                }
-
-                requestResult.accept(retriableEntries);
-            }
-
-            @Override
-            public void afterBulk(long executionId, BulkRequest request, List<Operation> contexts, Throwable failure) {
-                LOG.debug("Bulk request " + executionId + " failed", failure);
-                requestResult.accept(requestEntries);
-            }
-        };
-
-        try (BulkIngester<Operation> ingester = BulkIngester.of(b -> b
-            .client(esClient)
-            .listener(listener)
-        )) {
-            for (Operation operation : requestEntries) {
-                ingester.add(new BulkOperation(operation.getBulkOperationVariant()), operation);
+    private void handlePartiallyFailedRequest(
+        List<Operation> requestEntries,
+        Consumer<List<Operation>> requestResult,
+        BulkResponse response
+    ) {
+        ArrayList<Operation> failedItems = new ArrayList<>();
+        for (int i = 0; i < response.items().size(); i++) {
+            if (response.items().get(i).error() != null) {
+                // @TODO check if it should be retried
+                failedItems.add(requestEntries.get(i));
             }
         }
+
+        LOG.debug("The BulkRequest of {} operation(s) has failed. It took {}ms", requestEntries.size(), response.took());
+        requestResult.accept(failedItems);
+    }
+
+    private void handleSuccessfulRequest(
+        Consumer<List<Operation>> requestResult,
+        BulkResponse response
+    ) {
+        LOG.debug("The BulkRequest of {} operation(s) completed successfully. It took {}ms", response.items().size(), response.took());
+        requestResult.accept(Collections.emptyList());
+    }
+
+    private boolean isRetryable(Throwable error) {
+        return !ELASTICSEARCH_FATAL_EXCEPTION_CLASSIFIER.isFatal(error, getFatalExceptionCons());
     }
 
     @Override
