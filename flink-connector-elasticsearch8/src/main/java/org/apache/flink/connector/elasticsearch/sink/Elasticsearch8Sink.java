@@ -71,8 +71,6 @@ public class Elasticsearch8Sink<InputT> extends AsyncSinkBase<InputT, Operation>
     public StatefulSinkWriter<InputT, BufferedRequestState<Operation>> createWriter(
             InitContext context
     ) {
-        LOG.debug("creating writer");
-
         return new Elasticsearch8Writer<>(
             getElementConverter(),
             context,
