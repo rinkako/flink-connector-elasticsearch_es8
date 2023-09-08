@@ -21,27 +21,26 @@
 
 package org.apache.flink.connector.elasticsearch.sink;
 
+import co.elastic.clients.elasticsearch._types.ErrorCause;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperationVariant;
 
 import java.io.*;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Operation implements Serializable {
     private final BulkOperationVariant bulkOperationVariant;
 
-    private int retries;
+    private AtomicInteger retries;
 
-    public Operation(BulkOperationVariant bulkOperation, int retries) {
+    public Operation(BulkOperationVariant bulkOperation, AtomicInteger retries) {
         this.bulkOperationVariant = bulkOperation;
         this.retries = retries;
     }
 
-    public void retry() {
-        this.retries = this.retries - 1;
-    }
-
-    public boolean isRetriable() {
-        return this.retries > 0;
+    public boolean shouldRetry(ErrorCause errorCause) {
+        // @TODO implement the logic here
+        return false;
     }
 
     public BulkOperationVariant getBulkOperationVariant() {

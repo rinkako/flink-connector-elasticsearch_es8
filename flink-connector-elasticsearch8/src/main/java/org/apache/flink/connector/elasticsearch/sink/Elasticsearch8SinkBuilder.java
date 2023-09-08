@@ -29,6 +29,7 @@ import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.http.HttpHost;
 
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -71,7 +72,7 @@ public class Elasticsearch8SinkBuilder<InputT>
      * The number of times that an operation will be retried
      *
      */
-    private int maxRetries;
+    private AtomicInteger maxRetries;
 
     /**
      * setHost
@@ -132,13 +133,13 @@ public class Elasticsearch8SinkBuilder<InputT>
      * setMaxRetries
      * set the number of times an operation will be retried
      *
-     * @param maxRetries number
+     * @param maxRetries AtomicInteger
      * @return {@code ElasticsearchSinkBuilder}
      */
     public Elasticsearch8SinkBuilder<InputT> setMaxRetries(
-        int maxRetries
+        AtomicInteger maxRetries
     ) {
-        checkState(maxRetries > 0, "The retry number should be greater than zero");
+        checkState(maxRetries.get() > 0, "The retry number should be greater than zero");
         this.maxRetries = maxRetries;
         return this;
     }
@@ -168,12 +169,12 @@ public class Elasticsearch8SinkBuilder<InputT>
         );
     }
 
-    private static class OperationConverter<T> implements ElementConverter<T, Operation> {
+    public static class OperationConverter<T> implements ElementConverter<T, Operation> {
         private final ElementConverter<T, BulkOperationVariant> converter;
 
-        private final int maxRetries;
+        private final AtomicInteger maxRetries;
 
-        public OperationConverter(ElementConverter<T, BulkOperationVariant> converter, int maxRetries) {
+        public OperationConverter(ElementConverter<T, BulkOperationVariant> converter, AtomicInteger maxRetries) {
             this.converter = converter;
             this.maxRetries = maxRetries;
         }
