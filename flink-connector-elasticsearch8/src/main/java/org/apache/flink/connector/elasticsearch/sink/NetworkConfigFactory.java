@@ -30,20 +30,15 @@ import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.client.RestClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import static org.apache.flink.shaded.curator5.com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * NetworkConfigFactory
+ * A factory that creates a valid ElasticsearchClient instances
  *
- * A factory that implements the INetworkConfigFactory interface
- * to create valid ElasticsearchClient instances
  */
-public class NetworkConfigFactory implements INetworkConfigFactory {
-    private static final Logger LOG = LoggerFactory.getLogger(NetworkConfigFactory.class);
-
+public class NetworkConfigFactory {
     private final HttpHost[] hosts;
 
     private final String username;
@@ -56,7 +51,6 @@ public class NetworkConfigFactory implements INetworkConfigFactory {
         this.password = password;
     }
 
-    @Override
     public ElasticsearchAsyncClient create() {
         return new ElasticsearchAsyncClient(
             new RestClientTransport(this.getRestClient(), new JacksonJsonpMapper()));
