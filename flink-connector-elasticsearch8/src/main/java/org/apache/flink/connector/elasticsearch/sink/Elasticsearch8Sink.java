@@ -18,12 +18,14 @@
  * under the License.
  *
  */
+
 package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.connector.base.sink.AsyncSinkBase;
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+
 import org.apache.http.HttpHost;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +33,12 @@ import org.slf4j.LoggerFactory;
 import java.util.Collection;
 import java.util.Collections;
 
+/**
+ * Elasticsearch8Sink
+ * Apache Flink's Async Sink that submits Operations into an Elasticsearch cluster.
+ *
+ * @param <InputT> type of Operations
+ */
 public class Elasticsearch8Sink<InputT> extends AsyncSinkBase<InputT, Operation> {
     private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch8Sink.class);
 

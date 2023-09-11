@@ -34,9 +34,7 @@ import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient;
 import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
-
 import org.apache.http.HttpHost;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

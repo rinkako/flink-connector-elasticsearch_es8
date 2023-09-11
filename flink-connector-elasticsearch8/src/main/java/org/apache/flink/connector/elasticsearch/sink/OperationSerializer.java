@@ -30,6 +30,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 
+/**
+ * OperationSerializer is responsible for serialization and
+ * deserialization of an Operation.
+ *
+ */
 public class OperationSerializer {
     private final Kryo kryo = new Kryo();
 
