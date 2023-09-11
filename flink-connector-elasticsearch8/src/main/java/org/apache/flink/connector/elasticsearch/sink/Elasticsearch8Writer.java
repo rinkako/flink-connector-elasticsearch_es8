@@ -21,11 +21,6 @@
 
 package org.apache.flink.connector.elasticsearch.sink;
 
-import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient;
-import co.elastic.clients.elasticsearch.core.BulkRequest;
-import co.elastic.clients.elasticsearch.core.BulkResponse;
-import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
-
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.base.sink.throwable.FatalExceptionClassifier;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
@@ -35,7 +30,13 @@ import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfigu
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 
+import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient;
+import co.elastic.clients.elasticsearch.core.BulkRequest;
+import co.elastic.clients.elasticsearch.core.BulkResponse;
+import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
+
 import org.apache.http.HttpHost;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,6 +50,12 @@ import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+/**
+ * Elasticsearch8Writer
+ * Apache Flink's Async Sink Writer that submits Operations into an Elasticsearch cluster.
+ *
+ * @param <InputT> type of Operations
+ */
 public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operation> {
     private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch8Writer.class);
 
