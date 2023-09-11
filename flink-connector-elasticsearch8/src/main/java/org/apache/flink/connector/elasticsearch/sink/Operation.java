@@ -39,7 +39,7 @@ public class Operation implements Serializable {
 
     private final AtomicInteger retries;
 
-    private final List<Integer> DEFAULT_RETRY_STATUSES = Arrays.asList(502, 429);
+    private final List<Integer> DEFAULT_RETRY_STATUSES = Arrays.asList(503, 429);
 
     public Operation(BulkOperationVariant bulkOperation, AtomicInteger retries) {
         this.bulkOperationVariant = bulkOperation;
