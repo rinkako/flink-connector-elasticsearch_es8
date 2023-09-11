@@ -69,10 +69,10 @@ public class Elasticsearch8SinkBuilder<InputT>
     private ElementConverter<InputT, BulkOperationVariant> converter;
 
     /**
-     * The number of times that an operation will be retried
+     * The number of times an Operation will be retried
      *
      */
-    private AtomicInteger maxRetries;
+    private int maxRetries;
 
     /**
      * setHost
@@ -137,9 +137,9 @@ public class Elasticsearch8SinkBuilder<InputT>
      * @return {@code ElasticsearchSinkBuilder}
      */
     public Elasticsearch8SinkBuilder<InputT> setMaxRetries(
-        AtomicInteger maxRetries
+        int maxRetries
     ) {
-        checkState(maxRetries.get() > 0, "The retry number should be greater than zero");
+        checkState(maxRetries > 0, "The retry number should be greater than zero");
         this.maxRetries = maxRetries;
         return this;
     }
@@ -174,9 +174,9 @@ public class Elasticsearch8SinkBuilder<InputT>
 
         private final AtomicInteger maxRetries;
 
-        public OperationConverter(ElementConverter<T, BulkOperationVariant> converter, AtomicInteger maxRetries) {
+        public OperationConverter(ElementConverter<T, BulkOperationVariant> converter, int maxRetries) {
             this.converter = converter;
-            this.maxRetries = maxRetries;
+            this.maxRetries = new AtomicInteger(maxRetries);
         }
 
         @Override

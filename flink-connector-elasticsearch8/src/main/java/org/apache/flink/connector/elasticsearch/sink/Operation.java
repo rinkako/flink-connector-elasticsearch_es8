@@ -21,26 +21,38 @@
 
 package org.apache.flink.connector.elasticsearch.sink;
 
-import co.elastic.clients.elasticsearch._types.ErrorCause;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperationVariant;
+import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 
-import java.io.*;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * A single stream element which contains a BulkOperationVariant.
+ *
+ */
 public class Operation implements Serializable {
     private final BulkOperationVariant bulkOperationVariant;
 
-    private AtomicInteger retries;
+    private final AtomicInteger retries;
+
+    private final List<Integer> DEFAULT_RETRY_STATUSES = Arrays.asList(502, 429);
 
     public Operation(BulkOperationVariant bulkOperation, AtomicInteger retries) {
         this.bulkOperationVariant = bulkOperation;
         this.retries = retries;
     }
 
-    public boolean shouldRetry(ErrorCause errorCause) {
-        // @TODO implement the logic here
-        return false;
+    public boolean shouldRetry(BulkResponseItem item) {
+        if (retries.getAndDecrement() == 0) {
+            return false;
+        }
+
+        // @TODO create a handleFailure property so end users can apply their logic to retry or not
+        return DEFAULT_RETRY_STATUSES.contains(item.status());
     }
 
     public BulkOperationVariant getBulkOperationVariant() {
@@ -49,8 +61,8 @@ public class Operation implements Serializable {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) { return true; }
+        if (o == null || getClass() != o.getClass()) { return false; }
         Operation operation = (Operation) o;
         return Objects.equals(bulkOperationVariant, operation.bulkOperationVariant);
     }

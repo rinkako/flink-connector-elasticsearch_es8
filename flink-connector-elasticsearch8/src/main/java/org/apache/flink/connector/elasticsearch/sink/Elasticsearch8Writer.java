@@ -29,11 +29,11 @@ import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.base.sink.throwable.FatalExceptionClassifier;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
-
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
-
 import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 
 import org.apache.http.HttpHost;
 import org.slf4j.Logger;
@@ -41,13 +41,22 @@ import org.slf4j.LoggerFactory;
 
 import java.net.ConnectException;
 import java.net.NoRouteToHostException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.Consumer;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operation> {
     private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch8Writer.class);
 
     private final ElasticsearchAsyncClient esClient;
+
+    private boolean close = false;
+
+    private final Counter numRecordsOutErrorsCounter;
 
     private static final FatalExceptionClassifier ELASTICSEARCH_FATAL_EXCEPTION_CLASSIFIER =
         FatalExceptionClassifier.createChain(
@@ -89,6 +98,10 @@ public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operat
         );
 
         this.esClient = new NetworkConfigFactory(httpHosts, username, password).create();
+        final SinkWriterMetricGroup metricGroup = context.metricGroup();
+        checkNotNull(metricGroup);
+
+        this.numRecordsOutErrorsCounter = metricGroup.getNumRecordsOutErrorsCounter();
     }
 
     @Override
@@ -120,6 +133,7 @@ public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operat
         Throwable error
     ) {
         LOG.debug("The BulkRequest of {} operation(s) has failed.", requestEntries.size());
+        numRecordsOutErrorsCounter.inc(requestEntries.size());
 
          if (isRetryable(error.getCause())) {
              requestResult.accept(requestEntries);
@@ -134,12 +148,14 @@ public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operat
         ArrayList<Operation> failedItems = new ArrayList<>();
         for (int i = 0; i < response.items().size(); i++) {
             if (response.items().get(i).error() != null) {
-                // @TODO check if it should be retried
-                failedItems.add(requestEntries.get(i));
+                if (requestEntries.get(i).shouldRetry(response.items().get(i))) {
+                    numRecordsOutErrorsCounter.inc();
+                    failedItems.add(requestEntries.get(i));
+                }
             }
         }
 
-        LOG.debug("The BulkRequest of {} operation(s) has failed. It took {}ms", requestEntries.size(), response.took());
+        LOG.debug("The BulkRequest with {} operation(s) has {} failure(s). It took {}ms", requestEntries.size(), failedItems.size(), response.took());
         requestResult.accept(failedItems);
     }
 
@@ -152,11 +168,20 @@ public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operat
     }
 
     private boolean isRetryable(Throwable error) {
-        return !ELASTICSEARCH_FATAL_EXCEPTION_CLASSIFIER.isFatal(error, getFatalExceptionCons());
+        return !ELASTICSEARCH_FATAL_EXCEPTION_CLASSIFIER
+            .isFatal(error, getFatalExceptionCons());
     }
 
     @Override
     protected long getSizeInBytes(Operation requestEntry) {
         return new OperationSerializer().size(requestEntry);
+    }
+
+    @Override
+    public void close() {
+        if (!close) {
+            close = true;
+            esClient.shutdown();
+        }
     }
 }
