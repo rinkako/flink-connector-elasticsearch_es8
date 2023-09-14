@@ -34,19 +34,19 @@ import org.elasticsearch.client.RestClient;
 import static org.apache.flink.shaded.curator5.com.google.common.base.Preconditions.checkNotNull;
 
 /**
- * NetworkConfigFactory
+ * NetworkConfigConfig
  * A factory that creates valid ElasticsearchClient instances.
  *
  */
-public class NetworkConfigFactory {
+public class NetworkConfig {
     private final HttpHost[] hosts;
 
     private final String username;
 
     private final String password;
 
-    public NetworkConfigFactory(HttpHost[] hosts, String username, String password) {
-        this.hosts = checkNotNull(hosts);
+    public NetworkConfig(HttpHost[] hosts, String username, String password) {
+        this.hosts = checkNotNull(hosts, "Hosts must not be null");
         this.username = username;
         this.password = password;
     }
