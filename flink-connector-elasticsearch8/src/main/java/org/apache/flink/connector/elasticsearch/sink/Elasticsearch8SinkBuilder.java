@@ -1,39 +1,46 @@
-package org.apache.flink.connector.elasticsearch.sink;
-
 /*
  *
- *  * Licensed to the Apache Software Foundation (ASF) under one
- *  * or more contributor license agreements.  See the NOTICE file
- *  * distributed with this work for additional information
- *  * regarding copyright ownership.  The ASF licenses this file
- *  * to you under the Apache License, Version 2.0 (the
- *  * "License"); you may not use this file except in compliance
- *  * with the License.  You may obtain a copy of the License at
- *  *
- *  * http://www.apache.org/licenses/LICENSE-2.0
- *  *
- *  * Unless required by applicable law or agreed to in writing,
- *  * software distributed under the License is distributed on an
- *  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- *  * KIND, either express or implied.  See the License for the
- *  * specific language governing permissions and limitations
- *  * under the License.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  *
  */
 
-import co.elastic.clients.elasticsearch.core.bulk.BulkOperationVariant;
+package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.connector.base.sink.AsyncSinkBaseBuilder;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
+
+import co.elastic.clients.elasticsearch.core.bulk.BulkOperationVariant;
 import org.apache.http.HttpHost;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
+/**
+ * Elasticsearch8SinkBuilder
+ * The builder to construct the Elasticsearch8Sink {@link Elasticsearch8Sink}.
+ *
+ * @param <InputT> the type of records to be sunk into an Elasticsearch cluster
+ */
 public class Elasticsearch8SinkBuilder<InputT>
         extends AsyncSinkBaseBuilder<InputT, Operation, Elasticsearch8SinkBuilder<InputT>> {
 
@@ -44,94 +51,79 @@ public class Elasticsearch8SinkBuilder<InputT>
     private static final long DEFAULT_MAX_TIME_IN_BUFFER_MS = 5000;
     private static final long DEFAULT_MAX_RECORD_SIZE_IN_B = 1024 * 1024;
 
-    /**
-     * The hosts where the Elasticsearch cluster is reachable
-     *
-     */
+    /** The hosts where the Elasticsearch cluster is reachable. */
     private HttpHost[] hosts;
 
-    /**
-     * The username to authenticate the connection with the Elasticsearch cluster
-     *
-     */
+    /** The username to authenticate the connection with the Elasticsearch cluster. */
     private String username;
 
-    /**
-     * The password to authenticate the connection with the Elasticsearch cluster
-     *
-     */
+    /** The password to authenticate the connection with the Elasticsearch cluster. */
     private String password;
 
-    /**
-     * The converter that will be called on every stream element to be processed and buffered
-     *
-     */
-    private ElementConverter<InputT, BulkOperationVariant> converter;
+    /** The element converter that will be called on every stream element to be processed and buffered. */
+    private ElementConverter<InputT, BulkOperationVariant> elementConverter;
 
-    /**
-     * The number of times an Operation will be retried
-     *
-     */
+    /** The number of times an Operation will be retried. */
     private int maxRetries;
 
     /**
-     * setHost
-     * set the host where the Elasticsearch cluster is reachable
+     * setHosts
+     * set the hosts where the Elasticsearch cluster is reachable.
      *
      * @param hosts the hosts address
      * @return {@code ElasticsearchSinkBuilder}
      */
     public Elasticsearch8SinkBuilder<InputT> setHosts(HttpHost... hosts) {
         checkNotNull(hosts);
-        checkState(hosts.length > 0, "Hosts cannot be empty");
+        checkArgument(hosts.length > 0, "Hosts cannot be empty");
         this.hosts = hosts;
         return this;
     }
 
     /**
      * setUsername
-     * set the username to authenticate the connection with the Elasticsearch cluster
+     * set the username to authenticate the connection with the Elasticsearch cluster.
      *
      * @param username the auth username
      * @return {@code ElasticsearchSinkBuilder}
      */
     public Elasticsearch8SinkBuilder<InputT> setUsername(String username) {
-        checkNotNull(username);
+        checkNotNull(username, "Username must not be null");
         this.username = username;
         return this;
     }
 
     /**
      * setPassword
-     * set the password to authenticate the connection with the Elasticsearch cluster
+     * set the password to authenticate the connection with the Elasticsearch cluster.
      *
      * @param password the auth password
      * @return {@code ElasticsearchSinkBuilder}
      */
     public Elasticsearch8SinkBuilder<InputT> setPassword(String password) {
-        checkNotNull(password);
+        checkNotNull(password, "Password must not be null");
         this.password = password;
         return this;
     }
 
     /**
-     * setConverter
-     * set the converter that will be called at every stream element to be processed and buffered
+     * setElementConverter
+     * set the element converter that will be called at every stream element to be processed and buffered.
      *
-     * @param converter converter operation
+     * @param elementConverter elementConverter operation
      * @return {@code ElasticsearchSinkBuilder}
      */
-    public Elasticsearch8SinkBuilder<InputT> setConverter(
-        ElementConverter<InputT, BulkOperationVariant> converter
+    public Elasticsearch8SinkBuilder<InputT> setElementConverter(
+        ElementConverter<InputT, BulkOperationVariant> elementConverter
     ) {
-        checkNotNull(converter);
-        this.converter = converter;
+        checkNotNull(elementConverter);
+        this.elementConverter = elementConverter;
         return this;
     }
 
     /**
      * setMaxRetries
-     * set the number of times an operation will be retried
+     * set the number of times an operation will be retried.
      *
      * @param maxRetries AtomicInteger
      * @return {@code ElasticsearchSinkBuilder}
@@ -149,14 +141,14 @@ public class Elasticsearch8SinkBuilder<InputT>
     }
 
     /**
-     * Creates an ElasticsearchSink instance
+     * Creates an ElasticsearchSink instance.
      *
-     * @return ElasticsearchSink
+     * @return {@link Elasticsearch8Sink}
      */
     @Override
     public Elasticsearch8Sink<InputT> build() {
         return new Elasticsearch8Sink<>(
-            new OperationConverter<>(converter, maxRetries),
+            buildOperationConverter(elementConverter, maxRetries),
             Optional.ofNullable(getMaxBatchSize()).orElse(DEFAULT_MAX_BATCH_SIZE),
             Optional.ofNullable(getMaxInFlightRequests()).orElse(DEFAULT_MAX_IN_FLIGHT_REQUESTS),
             Optional.ofNullable(getMaxBufferedRequests()).orElse(DEFAULT_MAX_BUFFERED_REQUESTS),
@@ -169,6 +161,16 @@ public class Elasticsearch8SinkBuilder<InputT>
         );
     }
 
+    private OperationConverter<InputT> buildOperationConverter(
+        ElementConverter<InputT, BulkOperationVariant> converter,
+        int maxRetries
+    ) {
+        return converter != null
+            ? new OperationConverter<>(converter, maxRetries)
+            : null;
+    }
+
+    /** A wrapper that evolves the Operation, since a BulkOperationVariant is not Serializable. */
     public static class OperationConverter<T> implements ElementConverter<T, Operation> {
         private final ElementConverter<T, BulkOperationVariant> converter;
 
