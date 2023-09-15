@@ -85,7 +85,7 @@ public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operat
         long maxRecordSizeInBytes,
         String username,
         String password,
-        HttpHost[] httpHosts,
+        List<HttpHost> httpHosts,
         Collection<BufferedRequestState<Operation>> state
     ) {
         super(
@@ -102,7 +102,7 @@ public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operat
             state
         );
 
-        this.esClient = new NetworkConfigFactory(httpHosts, username, password).create();
+        this.esClient = new NetworkConfig(httpHosts, username, password).create();
         final SinkWriterMetricGroup metricGroup = context.metricGroup();
         checkNotNull(metricGroup);
 

@@ -31,7 +31,9 @@ import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.client.RestClient;
 
-import static org.apache.flink.shaded.curator5.com.google.common.base.Preconditions.checkNotNull;
+import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * NetworkConfigConfig
@@ -39,14 +41,15 @@ import static org.apache.flink.shaded.curator5.com.google.common.base.Preconditi
  *
  */
 public class NetworkConfig {
-    private final HttpHost[] hosts;
+    private final List<HttpHost> hosts;
 
     private final String username;
 
     private final String password;
 
-    public NetworkConfig(HttpHost[] hosts, String username, String password) {
-        this.hosts = checkNotNull(hosts, "Hosts must not be null");
+    public NetworkConfig(List<HttpHost> hosts, String username, String password) {
+        checkState(hosts.size() > 0, "Hosts must not be null");
+        this.hosts = hosts;
         this.username = username;
         this.password = password;
     }
@@ -57,7 +60,7 @@ public class NetworkConfig {
     }
 
     private RestClient getRestClient() {
-        return RestClient.builder(hosts)
+        return RestClient.builder(hosts.toArray(new HttpHost[0]))
             .setHttpClientConfigCallback(httpClientBuilder ->
                 (username != null && password != null) ?
                     httpClientBuilder.setDefaultCredentialsProvider(getCredentials())

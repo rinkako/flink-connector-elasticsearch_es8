@@ -28,6 +28,9 @@ import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperationVariant;
 import org.apache.http.HttpHost;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -52,7 +55,7 @@ public class Elasticsearch8SinkBuilder<InputT>
     private static final long DEFAULT_MAX_RECORD_SIZE_IN_B = 1024 * 1024;
 
     /** The hosts where the Elasticsearch cluster is reachable. */
-    private HttpHost[] hosts;
+    private List<HttpHost> hosts;
 
     /** The username to authenticate the connection with the Elasticsearch cluster. */
     private String username;
@@ -76,7 +79,7 @@ public class Elasticsearch8SinkBuilder<InputT>
     public Elasticsearch8SinkBuilder<InputT> setHosts(HttpHost... hosts) {
         checkNotNull(hosts);
         checkArgument(hosts.length > 0, "Hosts cannot be empty");
-        this.hosts = hosts;
+        this.hosts = Arrays.asList(hosts);
         return this;
     }
 

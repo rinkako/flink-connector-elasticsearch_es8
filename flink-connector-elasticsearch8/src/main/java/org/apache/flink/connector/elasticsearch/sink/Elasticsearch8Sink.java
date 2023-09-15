@@ -32,6 +32,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Elasticsearch8Sink
@@ -46,7 +49,7 @@ public class Elasticsearch8Sink<InputT> extends AsyncSinkBase<InputT, Operation>
 
     private final String password;
 
-    private final HttpHost[] httpHosts;
+    private final List<HttpHost> httpHosts;
 
     protected Elasticsearch8Sink(
         ElementConverter<InputT, Operation> converter,
@@ -58,7 +61,7 @@ public class Elasticsearch8Sink<InputT> extends AsyncSinkBase<InputT, Operation>
         long maxRecordSizeInByte,
         String username,
         String password,
-        HttpHost[] httpHosts
+        List<HttpHost> httpHosts
     ) {
         super(
             converter,
@@ -72,7 +75,7 @@ public class Elasticsearch8Sink<InputT> extends AsyncSinkBase<InputT, Operation>
 
         this.username = username;
         this.password = password;
-        this.httpHosts = httpHosts;
+        this.httpHosts = checkNotNull(httpHosts, "Hosts must not be null");
     }
 
     @Override
