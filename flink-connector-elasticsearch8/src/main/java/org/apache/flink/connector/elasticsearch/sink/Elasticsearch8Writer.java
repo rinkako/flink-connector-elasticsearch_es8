@@ -34,6 +34,9 @@ import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient;
 import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
+
+import org.apache.flink.util.FlinkRuntimeException;
+
 import org.apache.http.HttpHost;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,8 +72,7 @@ public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operat
                 err ->
                     err instanceof NoRouteToHostException || err instanceof ConnectException,
                 err ->
-                    // @TODO choose an exception
-                    new Exception("Could not connect to Elasticsearch cluster using provided hosts", err)
+                    new FlinkRuntimeException("Could not connect to Elasticsearch cluster using the provided hosts", err)
             )
         );
 
