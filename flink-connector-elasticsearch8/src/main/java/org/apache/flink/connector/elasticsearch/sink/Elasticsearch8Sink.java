@@ -103,8 +103,6 @@ public class Elasticsearch8Sink<InputT> extends AsyncSinkBase<InputT, Operation>
         InitContext context,
         Collection<BufferedRequestState<Operation>> recoveredState
     ) {
-        LOG.debug("restoring writer with {} items", recoveredState.size());
-
         return new Elasticsearch8Writer<>(
             getElementConverter(),
             context,

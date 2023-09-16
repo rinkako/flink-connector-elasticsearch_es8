@@ -22,11 +22,12 @@ package org.apache.flink.connector.elasticsearch.sink;
  */
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch.core.IndexRequest;
-import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
-import co.elastic.clients.elasticsearch.core.bulk.BulkOperationVariant;
+import co.elastic.clients.elasticsearch.core.bulk.UpdateOperation;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
+
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+
 import org.elasticsearch.client.RestClient;
 
 import org.apache.flink.api.common.functions.MapFunction;
@@ -42,8 +43,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 public class Elasticsearch8SinkTest extends ElasticsearchSinkBaseITCase {
     @BeforeEach
     void setUp() {
-        this.client = RestClient.builder(HttpHost.create(ES_CONTAINER.getHttpHostAddress())).build();
-        this.esClient = new ElasticsearchClient(new RestClientTransport(RestClient.builder(HttpHost.create(ES_CONTAINER.getHttpHostAddress())).build(), new JacksonJsonpMapper()));
+        this.client = RestClient.builder(HttpHost.create("localhost:9200")).build();
+        this.esClient = new ElasticsearchClient(new RestClientTransport(RestClient.builder(HttpHost.create("localhost:9200")).build(), new JacksonJsonpMapper()));
     }
 
     /**
@@ -56,21 +57,30 @@ public class Elasticsearch8SinkTest extends ElasticsearchSinkBaseITCase {
     public void indexingByThresholdReached() throws Exception {
         String ELASTICSEARCH_INDEX_NAME = "threshold-reached";
 
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment
-            .getExecutionEnvironment()
-            .setParallelism(1);
+        try (StreamExecutionEnvironment env = StreamExecutionEnvironment
+                .getExecutionEnvironment()
+                .setParallelism(1)) {
 
-        final Elasticsearch8Sink<DummyData> sink = Elasticsearch8SinkBuilder.<DummyData>builder()
-            .setHosts(new HttpHost(ES_CONTAINER.getHost(), ES_CONTAINER.getFirstMappedPort()))
-            .setConverter((element, ctx) -> new BulkOperation.Builder().index(op -> op.index(ELASTICSEARCH_INDEX_NAME).id(element.id).ifPrimaryTerm(1L).ifSeqNo(1L).document(element)).build())
-            .build();
+            env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
 
-        env
-            .fromElements("first", "second", "third", "first")
-            .map((MapFunction<String, DummyData>) value -> new DummyData(value + "_v1_index", value))
-            .sinkTo(sink);
+            final Elasticsearch8Sink<DummyData> sink = Elasticsearch8SinkBuilder
+                    .<DummyData>builder()
+                    .setHosts(new HttpHost(ES_CONTAINER.getHost(), ES_CONTAINER.getFirstMappedPort()))
+                    .setElementConverter((element, ctx) -> new UpdateOperation.Builder<>()
+                            .action(ac -> ac.doc(element).docAsUpsert(false))
+                            .index(ELASTICSEARCH_INDEX_NAME)
+                            .id(element.getId())
+                            .build())
+                    .build();
 
-        env.execute();
+            env
+                    .fromElements("first", "third", "for", "first")
+                    .map((MapFunction<String, DummyData>) value -> new DummyData(
+                            value + "_v1_index", value))
+                    .sinkTo(sink);
+
+            env.execute();
+        }
 
         assertIdsAreWritten(ELASTICSEARCH_INDEX_NAME, new String[]{"first_v1_index", "second_v1_index"});
     }
