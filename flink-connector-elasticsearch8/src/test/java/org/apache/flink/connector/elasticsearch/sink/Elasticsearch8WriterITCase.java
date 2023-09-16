@@ -21,21 +21,16 @@
 
 package org.apache.flink.connector.elasticsearch.sink;
 
-import co.elastic.clients.elasticsearch.core.bulk.IndexOperation;
-import co.elastic.clients.elasticsearch.core.bulk.UpdateOperation;
-
 import org.apache.flink.connector.base.sink.writer.TestSinkInitContext;
-
 import org.apache.flink.connector.elasticsearch.sink.Elasticsearch8SinkTest.DummyData;
-
-
 import org.apache.flink.metrics.Gauge;
 
+import co.elastic.clients.elasticsearch.core.bulk.IndexOperation;
+import co.elastic.clients.elasticsearch.core.bulk.UpdateOperation;
 import org.apache.http.HttpHost;
-import org.elasticsearch.client.Request;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -50,7 +45,7 @@ import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Integration tests for {@link Elasticsearch8Writer} */
+/** Integration tests for {@link Elasticsearch8Writer}. */
 @Testcontainers
 public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
     private TestSinkInitContext context;
@@ -78,7 +73,7 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
         String index = "test-bulk-on-flush";
         int maxBatchSize = 2;
 
-        try(final Elasticsearch8Writer<DummyData> writer = createWriter(index, maxBatchSize)) {
+        try (final Elasticsearch8Writer<DummyData> writer = createWriter(index, maxBatchSize)) {
             writer.write(new DummyData("test-1", "test-1"), null);
             writer.write(new DummyData("test-2", "test-2"), null);
 
