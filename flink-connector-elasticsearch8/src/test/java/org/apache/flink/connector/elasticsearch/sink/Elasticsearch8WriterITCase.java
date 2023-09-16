@@ -95,15 +95,20 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
 
         try (final Elasticsearch8Writer<DummyData> writer = createWriter(index, maxBatchSize)) {
             writer.write(new DummyData("test-1", "test-1"), null);
-            writer.write(new DummyData("test-2", "test-2"), null);
+            writer.flush(true);
 
-            assertIdsAreNotWritten(index, new String[]{"test-1", "test-2"});
+            assertIdsAreWritten(index, new String[]{"test-1"});
+
+            writer.write(new DummyData("test-2", "test-2"), null);
+            writer.write(new DummyData("test-3", "test-3"), null);
+
+            assertIdsAreNotWritten(index, new String[]{"test-2", "test-3"});
             context.getTestProcessingTimeService().advance(6000L);
 
             await();
         }
 
-        assertIdsAreWritten(index, new String[]{"test-1", "test-2"});
+        assertIdsAreWritten(index, new String[]{"test-2", "test-3"});
     }
 
     @Test
@@ -229,7 +234,7 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
             1024 * 1024,
             null,
             null,
-            Collections.singletonList(new HttpHost(ES_CONTAINER.getHost(), 9400)),
+            Collections.singletonList(new HttpHost(ES_CONTAINER.getHost(), ES_CONTAINER.getFirstMappedPort())),
             Collections.emptyList()
         ) {
             @Override
