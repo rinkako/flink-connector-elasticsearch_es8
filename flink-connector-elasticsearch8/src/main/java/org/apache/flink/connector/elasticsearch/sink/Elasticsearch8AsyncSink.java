@@ -41,7 +41,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Elasticsearch8AsyncSink
  * Apache Flink's Async Sink that submits Operations into an Elasticsearch cluster.
  *
- * @param <InputT> type of Operations
+ * @param <InputT> type of records that will be converted into {@link Operation}
+ * @see {@link Elasticsearch8AsyncSinkBuilder} on how to construct valid instances
  */
 public class Elasticsearch8AsyncSink<InputT> extends AsyncSinkBase<InputT, Operation> {
     private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch8AsyncSink.class);
