@@ -1,90 +1,142 @@
-package org.apache.flink.connector.elasticsearch.sink;
-
 /*
  *
- *  * Licensed to the Apache Software Foundation (ASF) under one
- *  * or more contributor license agreements.  See the NOTICE file
- *  * distributed with this work for additional information
- *  * regarding copyright ownership.  The ASF licenses this file
- *  * to you under the Apache License, Version 2.0 (the
- *  * "License"); you may not use this file except in compliance
- *  * with the License.  You may obtain a copy of the License at
- *  *
- *  * http://www.apache.org/licenses/LICENSE-2.0
- *  *
- *  * Unless required by applicable law or agreed to in writing,
- *  * software distributed under the License is distributed on an
- *  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- *  * KIND, either express or implied.  See the License for the
- *  * specific language governing permissions and limitations
- *  * under the License.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  *
  */
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch.core.bulk.UpdateOperation;
-import co.elastic.clients.json.jackson.JacksonJsonpMapper;
-import co.elastic.clients.transport.rest_client.RestClientTransport;
-
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-
-import org.elasticsearch.client.RestClient;
+package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+
+import co.elastic.clients.elasticsearch.core.bulk.IndexOperation;
 import org.apache.http.HttpHost;
-
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-
+import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.io.IOException;
+
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+
+/** Integration tests for {@link Elasticsearch8Sink}. */
 @Testcontainers
-public class Elasticsearch8SinkTest extends ElasticsearchSinkBaseITCase {
+public class Elasticsearch8SinkITCase extends ElasticsearchSinkBaseITCase {
+    private static boolean failed;
+
     @BeforeEach
     void setUp() {
-        this.client = RestClient.builder(HttpHost.create("localhost:9200")).build();
-        this.esClient = new ElasticsearchClient(new RestClientTransport(RestClient.builder(HttpHost.create("localhost:9200")).build(), new JacksonJsonpMapper()));
+        this.client = getRestClient();
+        failed = false;
     }
 
-    /**
-     * indexingByThresholdReached
-     * It's expected to sink data when the threshold specified is reached
-     *
-     * @throws Exception
-     */
+    @AfterEach
+    void shutdown() throws IOException {
+        if (client != null) {
+            client.close();
+        }
+    }
+
     @Test
-    public void indexingByThresholdReached() throws Exception {
-        String ELASTICSEARCH_INDEX_NAME = "threshold-reached";
+    public void testWriteToElasticsearch() throws Exception {
+        String index = "test-write-to-elasticsearch";
 
         try (StreamExecutionEnvironment env = StreamExecutionEnvironment
                 .getExecutionEnvironment()
                 .setParallelism(1)) {
 
-            env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
+            env.setRestartStrategy(RestartStrategies.noRestart());
 
-            final Elasticsearch8Sink<DummyData> sink = Elasticsearch8SinkBuilder
-                    .<DummyData>builder()
-                    .setHosts(new HttpHost(ES_CONTAINER.getHost(), ES_CONTAINER.getFirstMappedPort()))
-                    .setElementConverter((element, ctx) -> new UpdateOperation.Builder<>()
-                            .action(ac -> ac.doc(element).docAsUpsert(false))
-                            .index(ELASTICSEARCH_INDEX_NAME)
-                            .id(element.getId())
-                            .build())
-                    .build();
+            final Elasticsearch8Sink<DummyData> sink = Elasticsearch8SinkBuilder.<DummyData>builder()
+                .setMaxBatchSize(5)
+                .setHosts(new HttpHost(ES_CONTAINER.getHost(), ES_CONTAINER.getFirstMappedPort()))
+                .setElementConverter((element, ctx) -> new IndexOperation.Builder<>()
+                    .index(index)
+                    .id(element.getId())
+                    .document(element)
+                    .build())
+                .build();
 
             env
-                    .fromElements("first", "third", "for", "first")
-                    .map((MapFunction<String, DummyData>) value -> new DummyData(
-                            value + "_v1_index", value))
-                    .sinkTo(sink);
+                .fromElements("first", "second", "third", "fourth", "fifth")
+                .map((MapFunction<String, DummyData>) value -> new DummyData(value + "_v1_index", value))
+                .sinkTo(sink);
 
             env.execute();
         }
 
-        assertIdsAreWritten(ELASTICSEARCH_INDEX_NAME, new String[]{"first_v1_index", "second_v1_index"});
+        assertIdsAreWritten(index, new String[]{"first_v1_index", "second_v1_index"});
     }
 
+    @Test
+    public void testRecovery() throws Exception {
+        String index = "test-recovery";
+
+        try (final StreamExecutionEnvironment env = new LocalStreamEnvironment()) {
+
+            env.enableCheckpointing(100L);
+
+            final Elasticsearch8Sink<DummyData> sink = Elasticsearch8SinkBuilder.<DummyData>builder()
+                .setMaxBatchSize(5)
+                .setHosts(new HttpHost(ES_CONTAINER.getHost(), ES_CONTAINER.getFirstMappedPort()))
+                .setElementConverter((element, ctx) -> new IndexOperation.Builder<>()
+                    .index(index)
+                    .id(element.getId())
+                    .document(element)
+                    .build())
+                .build();
+
+            env
+                .fromElements("first", "second", "third", "fourth", "fifth")
+                .map((MapFunction<String, DummyData>) value -> new DummyData(value + "_v1_index", value))
+                .map(new BuggyMapper())
+                .sinkTo(sink);
+
+            env.execute();
+        }
+
+        assertThat(failed).isEqualTo(true);
+    }
+
+    private static class BuggyMapper implements MapFunction<DummyData, DummyData>, CheckpointListener {
+        private int emittedRecords = 0;
+
+        @Override
+        public DummyData map(DummyData dummyData) throws InterruptedException {
+            Thread.sleep(50);
+            emittedRecords++;
+            return dummyData;
+        }
+
+        @Override
+        public void notifyCheckpointComplete(long l) throws Exception {
+            if (!failed || emittedRecords != 0) {
+                failed = true;
+                throw new Exception();
+            }
+        }
+    }
+
+    /** DummyData is a POJO to helping during integration tests. */
     public static class DummyData {
         private final String id;
 
