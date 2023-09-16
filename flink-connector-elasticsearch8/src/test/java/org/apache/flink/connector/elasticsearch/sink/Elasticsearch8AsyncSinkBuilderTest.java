@@ -85,4 +85,13 @@ public class Elasticsearch8AsyncSinkBuilderTest {
                 .build()
         ).isInstanceOf(NullPointerException.class);
     }
+
+    @Test
+    void testThrowExceptionIfCertificateFingerprintIsNull() {
+        assertThatThrownBy(() ->
+            Elasticsearch8AsyncSinkBuilder.<String>builder()
+                .setCertificateFingerprint(null)
+                .build()
+        ).isInstanceOf(NullPointerException.class);
+    }
 }

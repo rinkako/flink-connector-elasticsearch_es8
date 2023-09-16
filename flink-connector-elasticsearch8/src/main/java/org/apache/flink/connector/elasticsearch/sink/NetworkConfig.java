@@ -23,6 +23,7 @@ package org.apache.flink.connector.elasticsearch.sink;
 
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
+import co.elastic.clients.transport.TransportUtils;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
@@ -33,7 +34,6 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 
-import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -52,12 +52,21 @@ public class NetworkConfig {
 
     private final String password;
 
-    public NetworkConfig(List<HttpHost> hosts, String username, String password, List<Header> headers) {
+    private final String certificateFingerprint;
+
+    public NetworkConfig(
+        List<HttpHost> hosts,
+        String username,
+        String password,
+        List<Header> headers,
+        String certificateFingerprint
+    ) {
         checkState(hosts.size() > 0, "Hosts must not be null");
         this.hosts = hosts;
         this.username = username;
         this.password = password;
         this.headers = headers;
+        this.certificateFingerprint = certificateFingerprint;
     }
 
     public ElasticsearchAsyncClient create() {
@@ -67,11 +76,19 @@ public class NetworkConfig {
 
     private RestClient getRestClient() {
         RestClientBuilder restClientBuilder = RestClient.builder(hosts.toArray(new HttpHost[0]))
-            .setHttpClientConfigCallback(httpClientBuilder ->
-                (username != null && password != null) ?
-                    httpClientBuilder.setDefaultCredentialsProvider(getCredentials())
-                    : httpClientBuilder
-            );
+            .setHttpClientConfigCallback(httpClientBuilder -> {
+                if (username != null && password != null)  {
+                    httpClientBuilder.setDefaultCredentialsProvider(getCredentials());
+                }
+
+                if (certificateFingerprint != null) {
+                    httpClientBuilder.setSSLContext(
+                        TransportUtils.sslContextFromCaFingerprint(certificateFingerprint)
+                    );
+                }
+
+                return httpClientBuilder;
+            });
 
         if (headers != null) {
             restClientBuilder.setDefaultHeaders(headers.toArray(new Header[0]));

@@ -58,6 +58,9 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
     /** The headers to be sent with the requests made to Elasticsearch cluster. */
     private List<Header> headers;
 
+    /** The Certificate Fingerprint will be used to verify the HTTPS connection  */
+    private String certificateFingerprint;
+
     /** The username to authenticate the connection with the Elasticsearch cluster. */
     private String username;
 
@@ -72,7 +75,7 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
      * set the hosts where the Elasticsearch cluster is reachable.
      *
      * @param hosts the hosts address
-     * @return {@code ElasticsearchSinkBuilder}
+     * @return {@code Elasticsearch8AsyncSinkBuilder}
      */
     public Elasticsearch8AsyncSinkBuilder<InputT> setHosts(HttpHost... hosts) {
         checkNotNull(hosts);
@@ -96,6 +99,19 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
     }
 
     /**
+     * setCertificateFingerprint
+     * set the certificate fingerprint to be used to verify the HTTPS connection.
+     *
+     * @param certificateFingerprint the certificate fingerprint
+     * @return {@code Elasticsearch8AsyncSinkBuilder}
+     */
+    public Elasticsearch8AsyncSinkBuilder<InputT> setCertificateFingerprint(String certificateFingerprint) {
+        checkNotNull(username, "certificateFingerprint must not be null");
+        this.certificateFingerprint = certificateFingerprint;
+        return this;
+    }
+
+    /**
      * setUsername
      * set the username to authenticate the connection with the Elasticsearch cluster.
      *
@@ -113,7 +129,7 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
      * set the password to authenticate the connection with the Elasticsearch cluster.
      *
      * @param password the auth password
-     * @return {@code ElasticsearchSinkBuilder}
+     * @return {@code Elasticsearch8AsyncSinkBuilder}
      */
     public Elasticsearch8AsyncSinkBuilder<InputT> setPassword(String password) {
         checkNotNull(password, "Password must not be null");
@@ -126,7 +142,7 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
      * set the element converter that will be called at every stream element to be processed and buffered.
      *
      * @param elementConverter elementConverter operation
-     * @return {@code ElasticsearchSinkBuilder}
+     * @return {@code Elasticsearch8AsyncSinkBuilder}
      */
     public Elasticsearch8AsyncSinkBuilder<InputT> setElementConverter(
         ElementConverter<InputT, BulkOperationVariant> elementConverter
@@ -157,6 +173,7 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
             Optional.ofNullable(getMaxRecordSizeInBytes()).orElse(DEFAULT_MAX_RECORD_SIZE_IN_B),
             username,
             password,
+            certificateFingerprint,
             hosts,
             headers
         );

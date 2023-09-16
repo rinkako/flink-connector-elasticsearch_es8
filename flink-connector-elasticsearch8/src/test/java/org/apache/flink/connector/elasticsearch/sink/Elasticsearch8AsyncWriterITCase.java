@@ -232,6 +232,7 @@ public class Elasticsearch8AsyncWriterITCase extends ElasticsearchSinkBaseITCase
             1024 * 1024,
             null,
             null,
+            null,
             Collections.singletonList(new HttpHost(ES_CONTAINER.getHost(), ES_CONTAINER.getFirstMappedPort())),
             null,
             Collections.emptyList()

@@ -50,6 +50,8 @@ public class Elasticsearch8AsyncSink<InputT> extends AsyncSinkBase<InputT, Opera
 
     private final String password;
 
+    private final String certificateFingerprint;
+
     private final List<HttpHost> httpHosts;
 
     private final List<Header> headers;
@@ -64,6 +66,7 @@ public class Elasticsearch8AsyncSink<InputT> extends AsyncSinkBase<InputT, Opera
         long maxRecordSizeInByte,
         String username,
         String password,
+        String certificateFingerprint,
         List<HttpHost> httpHosts,
         List<Header> headers
     ) {
@@ -79,6 +82,7 @@ public class Elasticsearch8AsyncSink<InputT> extends AsyncSinkBase<InputT, Opera
 
         this.username = username;
         this.password = password;
+        this.certificateFingerprint = certificateFingerprint;
         this.httpHosts = checkNotNull(httpHosts, "Hosts must not be null");
         this.headers = headers;
     }
@@ -98,6 +102,7 @@ public class Elasticsearch8AsyncSink<InputT> extends AsyncSinkBase<InputT, Opera
             getMaxRecordSizeInBytes(),
             username,
             password,
+            certificateFingerprint,
             httpHosts,
             headers,
             Collections.emptyList()
@@ -120,6 +125,7 @@ public class Elasticsearch8AsyncSink<InputT> extends AsyncSinkBase<InputT, Opera
             getMaxRecordSizeInBytes(),
             username,
             password,
+            certificateFingerprint,
             httpHosts,
             headers,
             recoveredState
