@@ -34,7 +34,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,10 +46,7 @@ public class OperationSerializerTest {
     @ParameterizedTest
     @MethodSource("operations")
     public void testSerializeAndDeserialize(BulkOperationVariant operationVariant) {
-        Operation expectedState = new Operation(
-            operationVariant,
-            new AtomicInteger(3)
-        );
+        Operation expectedState = new Operation(operationVariant);
 
         final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         final DataOutputStream out = new DataOutputStream(bytes);

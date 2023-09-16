@@ -153,10 +153,8 @@ public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operat
         ArrayList<Operation> failedItems = new ArrayList<>();
         for (int i = 0; i < response.items().size(); i++) {
             if (response.items().get(i).error() != null) {
-                if (requestEntries.get(i).shouldRetry(response.items().get(i))) {
-                    numRecordsOutErrorsCounter.inc();
-                    failedItems.add(requestEntries.get(i));
-                }
+                numRecordsOutErrorsCounter.inc();
+                failedItems.add(requestEntries.get(i));
             }
         }
 

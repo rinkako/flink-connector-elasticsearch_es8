@@ -184,8 +184,7 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
                 .id(element.getId())
                 .index(index)
                 .action(ac -> ac.doc(element).docAsUpsert(element.getId().equals("test-2")))
-                .build(),
-            3
+                .build()
         );
 
         try (final Elasticsearch8Writer<DummyData> writer = createWriter(index, maxBatchSize, elementConverter)) {
@@ -206,8 +205,7 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
                 .id(element.getId())
                 .document(element)
                 .index(index)
-                .build(),
-            3
+                .build()
         );
     }
 

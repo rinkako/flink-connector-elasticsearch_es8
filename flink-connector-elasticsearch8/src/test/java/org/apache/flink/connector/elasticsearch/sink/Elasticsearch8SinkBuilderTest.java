@@ -76,16 +76,4 @@ public class Elasticsearch8SinkBuilderTest {
                 .build()
         ).isInstanceOf(NullPointerException.class);
     }
-
-    @Test
-    void testThrowExceptionIfMaxRetriesIsInvalid() {
-        assertThatThrownBy(() ->
-            Elasticsearch8SinkBuilder.<String>builder()
-                .setMaxRetries(0)
-                .setHosts(new HttpHost("localhost", 9200))
-                .setElementConverter((element, ctx) ->
-                        new DeleteOperation.Builder().id("test").index("test").build())
-                .build()
-        ).isInstanceOf(IllegalStateException.class);
-    }
 }

@@ -29,14 +29,11 @@ import co.elastic.clients.elasticsearch.core.bulk.BulkOperationVariant;
 import org.apache.http.HttpHost;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Elasticsearch8SinkBuilder
@@ -65,9 +62,6 @@ public class Elasticsearch8SinkBuilder<InputT>
 
     /** The element converter that will be called on every stream element to be processed and buffered. */
     private ElementConverter<InputT, BulkOperationVariant> elementConverter;
-
-    /** The number of times an Operation will be retried. */
-    private int maxRetries;
 
     /**
      * setHosts
@@ -124,21 +118,6 @@ public class Elasticsearch8SinkBuilder<InputT>
         return this;
     }
 
-    /**
-     * setMaxRetries
-     * set the number of times an operation will be retried.
-     *
-     * @param maxRetries AtomicInteger
-     * @return {@code ElasticsearchSinkBuilder}
-     */
-    public Elasticsearch8SinkBuilder<InputT> setMaxRetries(
-        int maxRetries
-    ) {
-        checkState(maxRetries > 0, "The retry number should be greater than zero");
-        this.maxRetries = maxRetries;
-        return this;
-    }
-
     public static <T> Elasticsearch8SinkBuilder<T> builder() {
         return new Elasticsearch8SinkBuilder<>();
     }
@@ -151,7 +130,7 @@ public class Elasticsearch8SinkBuilder<InputT>
     @Override
     public Elasticsearch8Sink<InputT> build() {
         return new Elasticsearch8Sink<>(
-            buildOperationConverter(elementConverter, maxRetries),
+            buildOperationConverter(elementConverter),
             Optional.ofNullable(getMaxBatchSize()).orElse(DEFAULT_MAX_BATCH_SIZE),
             Optional.ofNullable(getMaxInFlightRequests()).orElse(DEFAULT_MAX_IN_FLIGHT_REQUESTS),
             Optional.ofNullable(getMaxBufferedRequests()).orElse(DEFAULT_MAX_BUFFERED_REQUESTS),
@@ -165,28 +144,22 @@ public class Elasticsearch8SinkBuilder<InputT>
     }
 
     private OperationConverter<InputT> buildOperationConverter(
-        ElementConverter<InputT, BulkOperationVariant> converter,
-        int maxRetries
+        ElementConverter<InputT, BulkOperationVariant> converter
     ) {
-        return converter != null
-            ? new OperationConverter<>(converter, maxRetries)
-            : null;
+        return converter != null ? new OperationConverter<>(converter) : null;
     }
 
     /** A wrapper that evolves the Operation, since a BulkOperationVariant is not Serializable. */
     public static class OperationConverter<T> implements ElementConverter<T, Operation> {
         private final ElementConverter<T, BulkOperationVariant> converter;
 
-        private final int maxRetries;
-
-        public OperationConverter(ElementConverter<T, BulkOperationVariant> converter, int maxRetries) {
+        public OperationConverter(ElementConverter<T, BulkOperationVariant> converter) {
             this.converter = converter;
-            this.maxRetries = maxRetries;
         }
 
         @Override
         public Operation apply(T element, SinkWriter.Context context) {
-            return new Operation(converter.apply(element, context), new AtomicInteger(maxRetries));
+            return new Operation(converter.apply(element, context));
         }
     }
 }
