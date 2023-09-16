@@ -22,25 +22,36 @@
 package org.apache.flink.connector.elasticsearch.sink;
 
 import co.elastic.clients.elasticsearch.core.bulk.IndexOperation;
+import co.elastic.clients.elasticsearch.core.bulk.UpdateOperation;
+
 import org.apache.flink.connector.base.sink.writer.TestSinkInitContext;
 
 import org.apache.flink.connector.elasticsearch.sink.Elasticsearch8SinkTest.DummyData;
 
+
+import org.apache.flink.metrics.Gauge;
+
 import org.apache.http.HttpHost;
+import org.elasticsearch.client.Request;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Timeout;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
-/** Tests for {@link Elasticsearch8Writer} */
+import static org.assertj.core.api.Assertions.assertThat;
+
+/** Integration tests for {@link Elasticsearch8Writer} */
+@Testcontainers
 public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
     private TestSinkInitContext context;
 
@@ -62,8 +73,8 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
     }
 
     @Test
-    @Timeout(2)
-    public void testBulkOnFlushTest() throws IOException, InterruptedException {
+    @Timeout(5)
+    public void testBulkOnFlush() throws IOException, InterruptedException {
         String index = "test-bulk-on-flush";
         int maxBatchSize = 2;
 
@@ -83,7 +94,7 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
 
     @Test
     @Timeout(5)
-    public void testBulkOnBufferTimeFlushTest() throws Exception {
+    public void testBulkOnBufferTimeFlush() throws Exception {
         String index = "test-bulk-on-time-in-buffer";
         int maxBatchSize = 3;
 
@@ -94,24 +105,126 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
             assertIdsAreNotWritten(index, new String[]{"test-1", "test-2"});
             context.getTestProcessingTimeService().advance(6000L);
 
-            block();
+            await();
         }
 
         assertIdsAreWritten(index, new String[]{"test-1", "test-2"});
     }
 
+    @Test
+    @Timeout(5)
+    public void testBytesSentMetric() throws Exception {
+        String index = "test-bytes-sent-metrics";
+        int maxBatchSize = 3;
+
+        try (final Elasticsearch8Writer<DummyData> writer = createWriter(index, maxBatchSize)) {
+            assertThat(context.getNumBytesOutCounter().getCount()).isEqualTo(0);
+
+            writer.write(new DummyData("test-1", "test-1"), null);
+            writer.write(new DummyData("test-2", "test-2"), null);
+            writer.write(new DummyData("test-3", "test-3"), null);
+
+            await();
+        }
+
+        assertThat(context.getNumBytesOutCounter().getCount()).isGreaterThan(0);
+        assertIdsAreWritten(index, new String[]{"test-1", "test-2", "test-3"});
+    }
+
+    @Test
+    @Timeout(5)
+    public void testRecordsSentMetric() throws Exception {
+        String index = "test-records-sent-metric";
+        int maxBatchSize = 3;
+
+        try (final Elasticsearch8Writer<DummyData> writer = createWriter(index, maxBatchSize)) {
+            assertThat(context.getNumRecordsOutCounter().getCount()).isEqualTo(0);
+
+            writer.write(new DummyData("test-1", "test-1"), null);
+            writer.write(new DummyData("test-2", "test-2"), null);
+            writer.write(new DummyData("test-3", "test-3"), null);
+
+            await();
+        }
+
+        assertThat(context.getNumRecordsOutCounter().getCount()).isEqualTo(3);
+        assertIdsAreWritten(index, new String[]{"test-1", "test-2", "test-3"});
+    }
+
+    @Test
+    @Timeout(5)
+    public void testSendTimeMetric() throws Exception {
+        String index = "test-send-time-metric";
+        int maxBatchSize = 3;
+
+        try (final Elasticsearch8Writer<DummyData> writer = createWriter(index, maxBatchSize)) {
+            final Optional<Gauge<Long>> currentSendTime = context.getCurrentSendTimeGauge();
+
+            writer.write(new DummyData("test-1", "test-1"), null);
+            writer.write(new DummyData("test-2", "test-2"), null);
+            writer.write(new DummyData("test-3", "test-3"), null);
+
+            await();
+
+            assertThat(currentSendTime).isPresent();
+            assertThat(currentSendTime.get().getValue()).isGreaterThan(0L);
+        }
+
+        assertIdsAreWritten(index, new String[]{"test-1", "test-2", "test-3"});
+    }
+
+    @Test
+    @Timeout(5)
+    public void testHandlePartiallyFailedBulk() throws Exception {
+        String index = "test-partially-failed-bulk";
+        int maxBatchSize = 2;
+
+        Elasticsearch8SinkBuilder.OperationConverter<DummyData> elementConverter = new Elasticsearch8SinkBuilder.OperationConverter<>(
+            (element, ctx) -> new UpdateOperation.Builder<>()
+                .id(element.getId())
+                .index(index)
+                .action(ac -> ac.doc(element).docAsUpsert(element.getId().equals("test-2")))
+                .build(),
+            3
+        );
+
+        try (final Elasticsearch8Writer<DummyData> writer = createWriter(index, maxBatchSize, elementConverter)) {
+            writer.write(new DummyData("test-1", "test-1-updated"), null);
+            writer.write(new DummyData("test-2", "test-2-updated"), null);
+        }
+
+        await();
+
+        assertThat(context.metricGroup().getNumRecordsOutErrorsCounter().getCount()).isEqualTo(1);
+        assertIdsAreWritten(index, new String[]{"test-2"});
+        assertIdsAreNotWritten(index, new String[]{"test-1"});
+    }
+
+    private Elasticsearch8SinkBuilder.OperationConverter<DummyData> getDefaultTestElementConverter(String index) {
+        return new Elasticsearch8SinkBuilder.OperationConverter<>(
+            (element, ctx) -> new IndexOperation.Builder<DummyData>()
+                .id(element.getId())
+                .document(element)
+                .index(index)
+                .build(),
+            3
+        );
+    }
+
     private Elasticsearch8Writer<DummyData> createWriter(
-            String index, int maxBatchSize
+        String index,
+        int maxBatchSize
+    ) {
+        return createWriter(index, maxBatchSize, getDefaultTestElementConverter(index));
+    }
+
+    private Elasticsearch8Writer<DummyData> createWriter(
+        String index,
+        int maxBatchSize,
+        Elasticsearch8SinkBuilder.OperationConverter<DummyData> elementConverter
     ) {
         return new Elasticsearch8Writer<DummyData>(
-            new Elasticsearch8SinkBuilder.OperationConverter<>(
-                (element, ctx) -> new IndexOperation.Builder<DummyData>()
-                    .id(element.getId())
-                    .document(element)
-                    .index(index)
-                    .build(),
-                3
-            ),
+            elementConverter,
             context,
             maxBatchSize,
             50,
@@ -121,30 +234,31 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
             1024 * 1024,
             null,
             null,
-            // @TODO get from container
-            Collections.singletonList(new HttpHost("0.0.0.0", 9200)),
+            Collections.singletonList(new HttpHost(ES_CONTAINER.getHost(), 9400)),
             Collections.emptyList()
         ) {
             @Override
-            protected void submitRequestEntries(List requestEntries, Consumer requestResult) {
-                super.submitRequestEntries(requestEntries, (entries) -> {
-                    requestResult.accept(entries);
-                    unblock();
-                });
+            protected void submitRequestEntries(
+                List<Operation> requestEntries,
+                Consumer<List<Operation>> requestResult)
+            {
+                super.submitRequestEntries(
+                    requestEntries,
+                    (entries) -> {
+                        requestResult.accept(entries);
+
+                        lock.lock();
+                        try {
+                            completed.signal();
+                        } finally {
+                            lock.unlock();
+                        }
+                    });
             }
         };
     }
 
-    private void unblock() {
-        lock.lock();
-        try {
-            completed.signal();
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    private void block() throws InterruptedException {
+    private void await() throws InterruptedException {
         lock.lock();
         try {
             completed.await();
@@ -153,3 +267,4 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
         }
     }
 }
+

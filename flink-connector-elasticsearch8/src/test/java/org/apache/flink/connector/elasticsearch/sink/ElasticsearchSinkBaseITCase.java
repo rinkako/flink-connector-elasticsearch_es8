@@ -21,8 +21,8 @@ package org.apache.flink.connector.elasticsearch.sink;
  */
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+
+import org.apache.http.HttpHost;
 import org.apache.http.util.EntityUtils;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
@@ -44,37 +44,29 @@ public class ElasticsearchSinkBaseITCase {
 
     public ElasticsearchClient esClient;
 
-    public static final String ELASTICSEARCH_VERSION = "8.5.0";
+    public static final String ELASTICSEARCH_VERSION = "8.0.0";
 
     public static final DockerImageName ELASTICSEARCH_IMAGE = DockerImageName
-            .parse("docker.elastic.co/elasticsearch/elasticsearch")
-            .withTag(ELASTICSEARCH_VERSION);
+        .parse("docker.elastic.co/elasticsearch/elasticsearch")
+        .withTag(ELASTICSEARCH_VERSION);
 
     @Container
     public static final ElasticsearchContainer ES_CONTAINER = createElasticsearchContainer();
 
-    @Container
-    public static final ElasticsearchContainer ES_AUTH_CONTAINER = createAuthElasticsearchContainer();
-
     public static ElasticsearchContainer createElasticsearchContainer() {
-        return new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
-                .withEnv("xpack.security.enabled", "false");
+        try (ElasticsearchContainer container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
+            .withEnv("xpack.security.enabled", "false")
+            .withExposedPorts(9400)
+        ) {
+            return container;
+        }
     }
 
-    public static ElasticsearchContainer createAuthElasticsearchContainer() {
-        return new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
-                .withPassword("generic-pass")
-                .withEnv("xpack.security.enabled", "true");
+    public RestClient getRestClient() {
+        return RestClient.builder(new HttpHost(ES_CONTAINER.getHost(), 9400))
+            .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder)
+            .build();
     }
-
-    @ClassRule
-    public static MiniClusterWithClientResource flinkCluster =
-            new MiniClusterWithClientResource(
-                    new MiniClusterResourceConfiguration.Builder()
-                            .setNumberSlotsPerTaskManager(2)
-                            .setNumberTaskManagers(1)
-                            .build()
-            );
 
     public void assertIdsAreWritten(String index, String[] ids) throws IOException {
         client.performRequest(new Request("GET", "_refresh"));
@@ -84,7 +76,20 @@ public class ElasticsearchSinkBaseITCase {
         assertEquals(200, response.getStatusLine().getStatusCode());
 
         for (String id : ids) {
+            System.out.println(id);
             assertThat(responseEntity).contains(id);
+        }
+    }
+
+    public void assertIdsAreNotWritten(String index, String[] ids) throws IOException {
+        client.performRequest(new Request("GET", "_refresh"));
+        Response response = client.performRequest(new Request("GET", index + "/_search/"));
+        String responseEntity = EntityUtils.toString(response.getEntity());
+
+        assertEquals(200, response.getStatusLine().getStatusCode());
+
+        for (String id : ids) {
+            assertThat(responseEntity).doesNotContain(id);
         }
     }
 }
