@@ -38,9 +38,9 @@ import java.io.IOException;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-/** Integration tests for {@link Elasticsearch8Sink}. */
+/** Integration tests for {@link Elasticsearch8AsyncSink}. */
 @Testcontainers
-public class Elasticsearch8SinkITCase extends ElasticsearchSinkBaseITCase {
+public class Elasticsearch8AsyncSinkITCase extends ElasticsearchSinkBaseITCase {
     private static boolean failed;
 
     @BeforeEach
@@ -66,7 +66,7 @@ public class Elasticsearch8SinkITCase extends ElasticsearchSinkBaseITCase {
 
             env.setRestartStrategy(RestartStrategies.noRestart());
 
-            final Elasticsearch8Sink<DummyData> sink = Elasticsearch8SinkBuilder.<DummyData>builder()
+            final Elasticsearch8AsyncSink<DummyData> sink = Elasticsearch8AsyncSinkBuilder.<DummyData>builder()
                 .setMaxBatchSize(5)
                 .setHosts(new HttpHost(ES_CONTAINER.getHost(), ES_CONTAINER.getFirstMappedPort()))
                 .setElementConverter((element, ctx) -> new IndexOperation.Builder<>()
@@ -95,7 +95,7 @@ public class Elasticsearch8SinkITCase extends ElasticsearchSinkBaseITCase {
 
             env.enableCheckpointing(100L);
 
-            final Elasticsearch8Sink<DummyData> sink = Elasticsearch8SinkBuilder.<DummyData>builder()
+            final Elasticsearch8AsyncSink<DummyData> sink = Elasticsearch8AsyncSinkBuilder.<DummyData>builder()
                 .setMaxBatchSize(5)
                 .setHosts(new HttpHost(ES_CONTAINER.getHost(), ES_CONTAINER.getFirstMappedPort()))
                 .setElementConverter((element, ctx) -> new IndexOperation.Builder<>()

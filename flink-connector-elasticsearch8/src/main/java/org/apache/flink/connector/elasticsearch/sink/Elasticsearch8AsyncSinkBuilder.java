@@ -36,13 +36,13 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Elasticsearch8SinkBuilder
- * The builder to construct the Elasticsearch8Sink {@link Elasticsearch8Sink}.
+ * Elasticsearch8AsyncSinkBuilder
+ * The builder to construct the Elasticsearch8Sink {@link Elasticsearch8AsyncSink}.
  *
  * @param <InputT> the type of records to be sunk into an Elasticsearch cluster
  */
-public class Elasticsearch8SinkBuilder<InputT>
-        extends AsyncSinkBaseBuilder<InputT, Operation, Elasticsearch8SinkBuilder<InputT>> {
+public class Elasticsearch8AsyncSinkBuilder<InputT>
+        extends AsyncSinkBaseBuilder<InputT, Operation, Elasticsearch8AsyncSinkBuilder<InputT>> {
 
     private static final int DEFAULT_MAX_BATCH_SIZE = 500;
     private static final int DEFAULT_MAX_IN_FLIGHT_REQUESTS = 50;
@@ -70,7 +70,7 @@ public class Elasticsearch8SinkBuilder<InputT>
      * @param hosts the hosts address
      * @return {@code ElasticsearchSinkBuilder}
      */
-    public Elasticsearch8SinkBuilder<InputT> setHosts(HttpHost... hosts) {
+    public Elasticsearch8AsyncSinkBuilder<InputT> setHosts(HttpHost... hosts) {
         checkNotNull(hosts);
         checkArgument(hosts.length > 0, "Hosts cannot be empty");
         this.hosts = Arrays.asList(hosts);
@@ -84,7 +84,7 @@ public class Elasticsearch8SinkBuilder<InputT>
      * @param username the auth username
      * @return {@code ElasticsearchSinkBuilder}
      */
-    public Elasticsearch8SinkBuilder<InputT> setUsername(String username) {
+    public Elasticsearch8AsyncSinkBuilder<InputT> setUsername(String username) {
         checkNotNull(username, "Username must not be null");
         this.username = username;
         return this;
@@ -97,7 +97,7 @@ public class Elasticsearch8SinkBuilder<InputT>
      * @param password the auth password
      * @return {@code ElasticsearchSinkBuilder}
      */
-    public Elasticsearch8SinkBuilder<InputT> setPassword(String password) {
+    public Elasticsearch8AsyncSinkBuilder<InputT> setPassword(String password) {
         checkNotNull(password, "Password must not be null");
         this.password = password;
         return this;
@@ -110,7 +110,7 @@ public class Elasticsearch8SinkBuilder<InputT>
      * @param elementConverter elementConverter operation
      * @return {@code ElasticsearchSinkBuilder}
      */
-    public Elasticsearch8SinkBuilder<InputT> setElementConverter(
+    public Elasticsearch8AsyncSinkBuilder<InputT> setElementConverter(
         ElementConverter<InputT, BulkOperationVariant> elementConverter
     ) {
         checkNotNull(elementConverter);
@@ -118,18 +118,18 @@ public class Elasticsearch8SinkBuilder<InputT>
         return this;
     }
 
-    public static <T> Elasticsearch8SinkBuilder<T> builder() {
-        return new Elasticsearch8SinkBuilder<>();
+    public static <T> Elasticsearch8AsyncSinkBuilder<T> builder() {
+        return new Elasticsearch8AsyncSinkBuilder<>();
     }
 
     /**
      * Creates an ElasticsearchSink instance.
      *
-     * @return {@link Elasticsearch8Sink}
+     * @return {@link Elasticsearch8AsyncSink}
      */
     @Override
-    public Elasticsearch8Sink<InputT> build() {
-        return new Elasticsearch8Sink<>(
+    public Elasticsearch8AsyncSink<InputT> build() {
+        return new Elasticsearch8AsyncSink<>(
             buildOperationConverter(elementConverter),
             Optional.ofNullable(getMaxBatchSize()).orElse(DEFAULT_MAX_BATCH_SIZE),
             Optional.ofNullable(getMaxInFlightRequests()).orElse(DEFAULT_MAX_IN_FLIGHT_REQUESTS),

@@ -27,12 +27,12 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
-/** Tests for {@link Elasticsearch8SinkBuilder}. */
-public class Elasticsearch8SinkBuilderTest {
+/** Tests for {@link Elasticsearch8AsyncSinkBuilder}. */
+public class Elasticsearch8AsyncSinkBuilderTest {
     @Test
     void testThrowExceptionIfElementConverterIsNotProvided() {
         assertThatThrownBy(() ->
-            Elasticsearch8SinkBuilder.<String>builder()
+            Elasticsearch8AsyncSinkBuilder.<String>builder()
                 .setHosts(new HttpHost("localhost", 9200))
                 .build()
         ).isInstanceOf(NullPointerException.class);
@@ -41,7 +41,7 @@ public class Elasticsearch8SinkBuilderTest {
     @Test
     void testThrowExceptionIfHostsAreNotProvided() {
         assertThatThrownBy(() ->
-            Elasticsearch8SinkBuilder.<String>builder()
+            Elasticsearch8AsyncSinkBuilder.<String>builder()
                 .setElementConverter((element, ctx) ->
                     new DeleteOperation.Builder().id("test").index("test").build())
                 .build()
@@ -51,7 +51,7 @@ public class Elasticsearch8SinkBuilderTest {
     @Test
     void testThrowExceptionIfHostsIsNull() {
         assertThatThrownBy(() ->
-            Elasticsearch8SinkBuilder.<String>builder()
+            Elasticsearch8AsyncSinkBuilder.<String>builder()
                 .setHosts(null)
                 .setElementConverter((element, ctx) ->
                     new DeleteOperation.Builder().id("test").index("test").build())
@@ -62,7 +62,7 @@ public class Elasticsearch8SinkBuilderTest {
     @Test
     void testThrowExceptionIfUsernameIsNull() {
         assertThatThrownBy(() ->
-            Elasticsearch8SinkBuilder.<String>builder()
+            Elasticsearch8AsyncSinkBuilder.<String>builder()
                 .setUsername(null)
                 .build()
         ).isInstanceOf(NullPointerException.class);
@@ -71,7 +71,7 @@ public class Elasticsearch8SinkBuilderTest {
     @Test
     void testThrowExceptionIfPasswordIsNull() {
         assertThatThrownBy(() ->
-            Elasticsearch8SinkBuilder.<String>builder()
+            Elasticsearch8AsyncSinkBuilder.<String>builder()
                 .setPassword(null)
                 .build()
         ).isInstanceOf(NullPointerException.class);

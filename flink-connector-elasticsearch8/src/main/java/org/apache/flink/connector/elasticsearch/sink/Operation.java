@@ -26,10 +26,7 @@ import co.elastic.clients.elasticsearch.core.bulk.BulkOperationVariant;
 import java.io.Serializable;
 import java.util.Objects;
 
-/**
- * A single stream element which contains a BulkOperationVariant.
- *
- */
+/** A single stream element which contains a BulkOperationVariant. */
 public class Operation implements Serializable {
     private static final long serialVersionUID = 1L;
 

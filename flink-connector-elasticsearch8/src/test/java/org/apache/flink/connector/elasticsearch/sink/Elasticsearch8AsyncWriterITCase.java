@@ -22,7 +22,7 @@
 package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.connector.base.sink.writer.TestSinkInitContext;
-import org.apache.flink.connector.elasticsearch.sink.Elasticsearch8SinkITCase.DummyData;
+import org.apache.flink.connector.elasticsearch.sink.Elasticsearch8AsyncSinkITCase.DummyData;
 import org.apache.flink.metrics.Gauge;
 
 import co.elastic.clients.elasticsearch.core.bulk.IndexOperation;
@@ -45,9 +45,9 @@ import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Integration tests for {@link Elasticsearch8Writer}. */
+/** Integration tests for {@link Elasticsearch8AsyncWriter}. */
 @Testcontainers
-public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
+public class Elasticsearch8AsyncWriterITCase extends ElasticsearchSinkBaseITCase {
     private TestSinkInitContext context;
 
     private final Lock lock = new ReentrantLock();
@@ -73,7 +73,7 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
         String index = "test-bulk-on-flush";
         int maxBatchSize = 2;
 
-        try (final Elasticsearch8Writer<DummyData> writer = createWriter(index, maxBatchSize)) {
+        try (final Elasticsearch8AsyncWriter<DummyData> writer = createWriter(index, maxBatchSize)) {
             writer.write(new DummyData("test-1", "test-1"), null);
             writer.write(new DummyData("test-2", "test-2"), null);
 
@@ -93,7 +93,7 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
         String index = "test-bulk-on-time-in-buffer";
         int maxBatchSize = 3;
 
-        try (final Elasticsearch8Writer<DummyData> writer = createWriter(index, maxBatchSize)) {
+        try (final Elasticsearch8AsyncWriter<DummyData> writer = createWriter(index, maxBatchSize)) {
             writer.write(new DummyData("test-1", "test-1"), null);
             writer.flush(true);
 
@@ -117,7 +117,7 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
         String index = "test-bytes-sent-metrics";
         int maxBatchSize = 3;
 
-        try (final Elasticsearch8Writer<DummyData> writer = createWriter(index, maxBatchSize)) {
+        try (final Elasticsearch8AsyncWriter<DummyData> writer = createWriter(index, maxBatchSize)) {
             assertThat(context.getNumBytesOutCounter().getCount()).isEqualTo(0);
 
             writer.write(new DummyData("test-1", "test-1"), null);
@@ -137,7 +137,7 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
         String index = "test-records-sent-metric";
         int maxBatchSize = 3;
 
-        try (final Elasticsearch8Writer<DummyData> writer = createWriter(index, maxBatchSize)) {
+        try (final Elasticsearch8AsyncWriter<DummyData> writer = createWriter(index, maxBatchSize)) {
             assertThat(context.getNumRecordsOutCounter().getCount()).isEqualTo(0);
 
             writer.write(new DummyData("test-1", "test-1"), null);
@@ -157,7 +157,7 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
         String index = "test-send-time-metric";
         int maxBatchSize = 3;
 
-        try (final Elasticsearch8Writer<DummyData> writer = createWriter(index, maxBatchSize)) {
+        try (final Elasticsearch8AsyncWriter<DummyData> writer = createWriter(index, maxBatchSize)) {
             final Optional<Gauge<Long>> currentSendTime = context.getCurrentSendTimeGauge();
 
             writer.write(new DummyData("test-1", "test-1"), null);
@@ -179,7 +179,7 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
         String index = "test-partially-failed-bulk";
         int maxBatchSize = 2;
 
-        Elasticsearch8SinkBuilder.OperationConverter<DummyData> elementConverter = new Elasticsearch8SinkBuilder.OperationConverter<>(
+        Elasticsearch8AsyncSinkBuilder.OperationConverter<DummyData> elementConverter = new Elasticsearch8AsyncSinkBuilder.OperationConverter<>(
             (element, ctx) -> new UpdateOperation.Builder<>()
                 .id(element.getId())
                 .index(index)
@@ -187,7 +187,7 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
                 .build()
         );
 
-        try (final Elasticsearch8Writer<DummyData> writer = createWriter(index, maxBatchSize, elementConverter)) {
+        try (final Elasticsearch8AsyncWriter<DummyData> writer = createWriter(index, maxBatchSize, elementConverter)) {
             writer.write(new DummyData("test-1", "test-1-updated"), null);
             writer.write(new DummyData("test-2", "test-2-updated"), null);
         }
@@ -199,8 +199,8 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
         assertIdsAreNotWritten(index, new String[]{"test-1"});
     }
 
-    private Elasticsearch8SinkBuilder.OperationConverter<DummyData> getDefaultTestElementConverter(String index) {
-        return new Elasticsearch8SinkBuilder.OperationConverter<>(
+    private Elasticsearch8AsyncSinkBuilder.OperationConverter<DummyData> getDefaultTestElementConverter(String index) {
+        return new Elasticsearch8AsyncSinkBuilder.OperationConverter<>(
             (element, ctx) -> new IndexOperation.Builder<DummyData>()
                 .id(element.getId())
                 .document(element)
@@ -209,19 +209,19 @@ public class Elasticsearch8WriterITCase extends ElasticsearchSinkBaseITCase {
         );
     }
 
-    private Elasticsearch8Writer<DummyData> createWriter(
+    private Elasticsearch8AsyncWriter<DummyData> createWriter(
         String index,
         int maxBatchSize
     ) {
         return createWriter(index, maxBatchSize, getDefaultTestElementConverter(index));
     }
 
-    private Elasticsearch8Writer<DummyData> createWriter(
+    private Elasticsearch8AsyncWriter<DummyData> createWriter(
         String index,
         int maxBatchSize,
-        Elasticsearch8SinkBuilder.OperationConverter<DummyData> elementConverter
+        Elasticsearch8AsyncSinkBuilder.OperationConverter<DummyData> elementConverter
     ) {
-        return new Elasticsearch8Writer<DummyData>(
+        return new Elasticsearch8AsyncWriter<DummyData>(
             elementConverter,
             context,
             maxBatchSize,

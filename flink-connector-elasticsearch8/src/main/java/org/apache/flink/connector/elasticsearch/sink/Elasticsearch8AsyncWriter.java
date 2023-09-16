@@ -50,13 +50,13 @@ import java.util.function.Consumer;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Elasticsearch8Writer
+ * Elasticsearch8AsyncWriter
  * Apache Flink's Async Sink Writer that submits Operations into an Elasticsearch cluster.
  *
  * @param <InputT> type of Operations
  */
-public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operation> {
-    private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch8Writer.class);
+public class Elasticsearch8AsyncWriter<InputT> extends AsyncSinkWriter<InputT, Operation> {
+    private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch8AsyncWriter.class);
 
     private final ElasticsearchAsyncClient esClient;
 
@@ -74,7 +74,7 @@ public class Elasticsearch8Writer<InputT> extends AsyncSinkWriter<InputT, Operat
             )
         );
 
-    public Elasticsearch8Writer(
+    public Elasticsearch8AsyncWriter(
         ElementConverter<InputT, Operation> elementConverter,
         Sink.InitContext context,
         int maxBatchSize,

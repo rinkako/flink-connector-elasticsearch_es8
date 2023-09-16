@@ -37,13 +37,13 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Elasticsearch8Sink
+ * Elasticsearch8AsyncSink
  * Apache Flink's Async Sink that submits Operations into an Elasticsearch cluster.
  *
  * @param <InputT> type of Operations
  */
-public class Elasticsearch8Sink<InputT> extends AsyncSinkBase<InputT, Operation> {
-    private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch8Sink.class);
+public class Elasticsearch8AsyncSink<InputT> extends AsyncSinkBase<InputT, Operation> {
+    private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch8AsyncSink.class);
 
     private final String username;
 
@@ -51,7 +51,7 @@ public class Elasticsearch8Sink<InputT> extends AsyncSinkBase<InputT, Operation>
 
     private final List<HttpHost> httpHosts;
 
-    protected Elasticsearch8Sink(
+    protected Elasticsearch8AsyncSink(
         ElementConverter<InputT, Operation> converter,
         int maxBatchSize,
         int maxInFlightRequests,
@@ -82,7 +82,7 @@ public class Elasticsearch8Sink<InputT> extends AsyncSinkBase<InputT, Operation>
     public StatefulSinkWriter<InputT, BufferedRequestState<Operation>> createWriter(
             InitContext context
     ) {
-        return new Elasticsearch8Writer<>(
+        return new Elasticsearch8AsyncWriter<>(
             getElementConverter(),
             context,
             getMaxBatchSize(),
@@ -103,7 +103,7 @@ public class Elasticsearch8Sink<InputT> extends AsyncSinkBase<InputT, Operation>
         InitContext context,
         Collection<BufferedRequestState<Operation>> recoveredState
     ) {
-        return new Elasticsearch8Writer<>(
+        return new Elasticsearch8AsyncWriter<>(
             getElementConverter(),
             context,
             getMaxBatchSize(),
@@ -121,6 +121,6 @@ public class Elasticsearch8Sink<InputT> extends AsyncSinkBase<InputT, Operation>
 
     @Override
     public SimpleVersionedSerializer<BufferedRequestState<Operation>> getWriterStateSerializer() {
-        return new Elasticsearch8SinkSerializer();
+        return new Elasticsearch8AsyncSinkSerializer();
     }
 }
