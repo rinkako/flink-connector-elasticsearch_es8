@@ -177,16 +177,16 @@ public class Elasticsearch8SinkBuilder<InputT>
     public static class OperationConverter<T> implements ElementConverter<T, Operation> {
         private final ElementConverter<T, BulkOperationVariant> converter;
 
-        private final AtomicInteger maxRetries;
+        private final int maxRetries;
 
         public OperationConverter(ElementConverter<T, BulkOperationVariant> converter, int maxRetries) {
             this.converter = converter;
-            this.maxRetries = new AtomicInteger(maxRetries);
+            this.maxRetries = maxRetries;
         }
 
         @Override
         public Operation apply(T element, SinkWriter.Context context) {
-            return new Operation(converter.apply(element, context), maxRetries);
+            return new Operation(converter.apply(element, context), new AtomicInteger(maxRetries));
         }
     }
 }
