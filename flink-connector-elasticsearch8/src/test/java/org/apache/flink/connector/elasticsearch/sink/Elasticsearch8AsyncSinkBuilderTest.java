@@ -76,4 +76,13 @@ public class Elasticsearch8AsyncSinkBuilderTest {
                 .build()
         ).isInstanceOf(NullPointerException.class);
     }
+
+    @Test
+    void testThrowExceptionIfHeadersAreNull() {
+        assertThatThrownBy(() ->
+            Elasticsearch8AsyncSinkBuilder.<String>builder()
+                .setHeaders(null)
+                .build()
+        ).isInstanceOf(NullPointerException.class);
+    }
 }

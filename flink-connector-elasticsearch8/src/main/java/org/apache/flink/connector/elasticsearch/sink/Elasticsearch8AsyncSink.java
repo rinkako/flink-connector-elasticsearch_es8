@@ -26,6 +26,7 @@ import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
+import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +52,8 @@ public class Elasticsearch8AsyncSink<InputT> extends AsyncSinkBase<InputT, Opera
 
     private final List<HttpHost> httpHosts;
 
+    private final List<Header> headers;
+
     protected Elasticsearch8AsyncSink(
         ElementConverter<InputT, Operation> converter,
         int maxBatchSize,
@@ -61,7 +64,8 @@ public class Elasticsearch8AsyncSink<InputT> extends AsyncSinkBase<InputT, Opera
         long maxRecordSizeInByte,
         String username,
         String password,
-        List<HttpHost> httpHosts
+        List<HttpHost> httpHosts,
+        List<Header> headers
     ) {
         super(
             converter,
@@ -76,6 +80,7 @@ public class Elasticsearch8AsyncSink<InputT> extends AsyncSinkBase<InputT, Opera
         this.username = username;
         this.password = password;
         this.httpHosts = checkNotNull(httpHosts, "Hosts must not be null");
+        this.headers = headers;
     }
 
     @Override
@@ -94,6 +99,7 @@ public class Elasticsearch8AsyncSink<InputT> extends AsyncSinkBase<InputT, Opera
             username,
             password,
             httpHosts,
+            headers,
             Collections.emptyList()
         );
     }
@@ -115,6 +121,7 @@ public class Elasticsearch8AsyncSink<InputT> extends AsyncSinkBase<InputT, Opera
             username,
             password,
             httpHosts,
+            headers,
             recoveredState
         );
     }

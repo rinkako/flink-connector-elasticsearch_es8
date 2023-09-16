@@ -233,6 +233,7 @@ public class Elasticsearch8AsyncWriterITCase extends ElasticsearchSinkBaseITCase
             null,
             null,
             Collections.singletonList(new HttpHost(ES_CONTAINER.getHost(), ES_CONTAINER.getFirstMappedPort())),
+            null,
             Collections.emptyList()
         ) {
             @Override

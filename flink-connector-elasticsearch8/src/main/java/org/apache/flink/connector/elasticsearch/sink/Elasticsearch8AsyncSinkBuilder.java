@@ -26,6 +26,7 @@ import org.apache.flink.connector.base.sink.AsyncSinkBaseBuilder;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperationVariant;
+import org.apache.http.Header;
 import org.apache.http.HttpHost;
 
 import java.util.Arrays;
@@ -54,6 +55,9 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
     /** The hosts where the Elasticsearch cluster is reachable. */
     private List<HttpHost> hosts;
 
+    /** The headers to be sent with the requests made to Elasticsearch cluster. */
+    private List<Header> headers;
+
     /** The username to authenticate the connection with the Elasticsearch cluster. */
     private String username;
 
@@ -78,11 +82,25 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
     }
 
     /**
+     * setHeaders
+     * set the headers to be sent with the requests made to Elasticsearch cluster..
+     *
+     * @param headers the headers
+     * @return {@code Elasticsearch8AsyncSinkBuilder}
+     */
+    public Elasticsearch8AsyncSinkBuilder<InputT> setHeaders(Header... headers) {
+        checkNotNull(hosts);
+        checkArgument(headers.length > 0, "Hosts cannot be empty");
+        this.headers = Arrays.asList(headers);
+        return this;
+    }
+
+    /**
      * setUsername
      * set the username to authenticate the connection with the Elasticsearch cluster.
      *
      * @param username the auth username
-     * @return {@code ElasticsearchSinkBuilder}
+     * @return {@code Elasticsearch8AsyncSinkBuilder}
      */
     public Elasticsearch8AsyncSinkBuilder<InputT> setUsername(String username) {
         checkNotNull(username, "Username must not be null");
@@ -139,7 +157,8 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
             Optional.ofNullable(getMaxRecordSizeInBytes()).orElse(DEFAULT_MAX_RECORD_SIZE_IN_B),
             username,
             password,
-            hosts
+            hosts,
+            headers
         );
     }
 
