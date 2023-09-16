@@ -22,7 +22,7 @@
 package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.connector.base.sink.writer.TestSinkInitContext;
-import org.apache.flink.connector.elasticsearch.sink.Elasticsearch8SinkTest.DummyData;
+import org.apache.flink.connector.elasticsearch.sink.Elasticsearch8SinkITCase.DummyData;
 import org.apache.flink.metrics.Gauge;
 
 import co.elastic.clients.elasticsearch.core.bulk.IndexOperation;

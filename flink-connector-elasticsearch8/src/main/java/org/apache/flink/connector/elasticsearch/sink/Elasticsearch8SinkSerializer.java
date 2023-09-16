@@ -18,6 +18,7 @@
  * under the License.
  *
  */
+
 package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriterStateSerializer;
@@ -25,6 +26,7 @@ import org.apache.flink.connector.base.sink.writer.AsyncSinkWriterStateSerialize
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 
+/** Elasticsearch8SinkSerializer is used to serialize and deserialize an Operation. */
 public class Elasticsearch8SinkSerializer extends AsyncSinkWriterStateSerializer<Operation> {
 
     @Override

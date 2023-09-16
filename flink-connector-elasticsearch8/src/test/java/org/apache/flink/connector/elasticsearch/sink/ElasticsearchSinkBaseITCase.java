@@ -21,7 +21,6 @@
 
 package org.apache.flink.connector.elasticsearch.sink;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import org.apache.http.HttpHost;
 import org.apache.http.util.EntityUtils;
 import org.elasticsearch.client.Request;
@@ -46,8 +45,6 @@ public class ElasticsearchSinkBaseITCase {
     protected static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSinkBaseITCase.class);
 
     public RestClient client;
-
-    public ElasticsearchClient esClient;
 
     public static final String ELASTICSEARCH_VERSION = "8.9.1";
 
