@@ -51,6 +51,22 @@ under the License.
 
 		<!-- Table ecosystem -->
 
+		<!-- Table API integration tests -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner-loader</artifactId>
+			<version>${flink.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-runtime</artifactId>
+			<version>${flink.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+
 		<!-- Projects depending on this project won't depend on flink-table-*. -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -64,6 +80,19 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-base</artifactId>
 			<version>${flink.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-elasticsearch-base</artifactId>
+			<version>${project.version}</version>
+			<exclusions>
+				<!-- Exclude the base module elasticsearch -->
+				<exclusion>
+					<groupId>org.elasticsearch</groupId>
+					<artifactId>elasticsearch</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -125,6 +154,20 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-architecture-tests-production</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-elasticsearch-base</artifactId>
+			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.elasticsearch</groupId>
+					<artifactId>elasticsearch</artifactId>
+				</exclusion>
+			</exclusions>
+			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 

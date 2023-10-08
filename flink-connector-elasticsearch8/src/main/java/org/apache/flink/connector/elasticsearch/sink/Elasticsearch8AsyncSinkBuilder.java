@@ -58,7 +58,7 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
     /** The headers to be sent with the requests made to Elasticsearch cluster. */
     private List<Header> headers;
 
-    /** The Certificate Fingerprint will be used to verify the HTTPS connection  */
+    /** The Certificate Fingerprint will be used to verify the HTTPS connection. */
     private String certificateFingerprint;
 
     /** The username to authenticate the connection with the Elasticsearch cluster. */
@@ -66,6 +66,9 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
 
     /** The password to authenticate the connection with the Elasticsearch cluster. */
     private String password;
+
+    /** Is throw a stream exception when sink any record failed. **/
+    private boolean isExceptionWhenFailed = true;
 
     /** The element converter that will be called on every stream element to be processed and buffered. */
     private ElementConverter<InputT, BulkOperationVariant> elementConverter;
@@ -75,6 +78,7 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
      * set the hosts where the Elasticsearch cluster is reachable.
      *
      * @param hosts the hosts address
+     *
      * @return {@code Elasticsearch8AsyncSinkBuilder}
      */
     public Elasticsearch8AsyncSinkBuilder<InputT> setHosts(HttpHost... hosts) {
@@ -89,6 +93,7 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
      * set the headers to be sent with the requests made to Elasticsearch cluster..
      *
      * @param headers the headers
+     *
      * @return {@code Elasticsearch8AsyncSinkBuilder}
      */
     public Elasticsearch8AsyncSinkBuilder<InputT> setHeaders(Header... headers) {
@@ -103,6 +108,7 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
      * set the certificate fingerprint to be used to verify the HTTPS connection.
      *
      * @param certificateFingerprint the certificate fingerprint
+     *
      * @return {@code Elasticsearch8AsyncSinkBuilder}
      */
     public Elasticsearch8AsyncSinkBuilder<InputT> setCertificateFingerprint(String certificateFingerprint) {
@@ -116,6 +122,7 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
      * set the username to authenticate the connection with the Elasticsearch cluster.
      *
      * @param username the auth username
+     *
      * @return {@code Elasticsearch8AsyncSinkBuilder}
      */
     public Elasticsearch8AsyncSinkBuilder<InputT> setUsername(String username) {
@@ -129,6 +136,7 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
      * set the password to authenticate the connection with the Elasticsearch cluster.
      *
      * @param password the auth password
+     *
      * @return {@code Elasticsearch8AsyncSinkBuilder}
      */
     public Elasticsearch8AsyncSinkBuilder<InputT> setPassword(String password) {
@@ -142,13 +150,26 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
      * set the element converter that will be called at every stream element to be processed and buffered.
      *
      * @param elementConverter elementConverter operation
+     *
      * @return {@code Elasticsearch8AsyncSinkBuilder}
      */
     public Elasticsearch8AsyncSinkBuilder<InputT> setElementConverter(
-        ElementConverter<InputT, BulkOperationVariant> elementConverter
+            ElementConverter<InputT, BulkOperationVariant> elementConverter
     ) {
         checkNotNull(elementConverter);
         this.elementConverter = elementConverter;
+        return this;
+    }
+
+    /**
+     * set if stream level exception occurred when sink any record failed.
+     *
+     * @param isThrowEx is throw a root exception when sink failed
+     *
+     * @return {@code Elasticsearch8AsyncSinkBuilder}
+     */
+    public Elasticsearch8AsyncSinkBuilder<InputT> setExceptionWhenSinkFailed(boolean isThrowEx) {
+        this.isExceptionWhenFailed = isThrowEx;
         return this;
     }
 
@@ -164,23 +185,26 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
     @Override
     public Elasticsearch8AsyncSink<InputT> build() {
         return new Elasticsearch8AsyncSink<>(
-            buildOperationConverter(elementConverter),
-            Optional.ofNullable(getMaxBatchSize()).orElse(DEFAULT_MAX_BATCH_SIZE),
-            Optional.ofNullable(getMaxInFlightRequests()).orElse(DEFAULT_MAX_IN_FLIGHT_REQUESTS),
-            Optional.ofNullable(getMaxBufferedRequests()).orElse(DEFAULT_MAX_BUFFERED_REQUESTS),
-            Optional.ofNullable(getMaxBatchSizeInBytes()).orElse(DEFAULT_MAX_BATCH_SIZE_IN_B),
-            Optional.ofNullable(getMaxTimeInBufferMS()).orElse(DEFAULT_MAX_TIME_IN_BUFFER_MS),
-            Optional.ofNullable(getMaxRecordSizeInBytes()).orElse(DEFAULT_MAX_RECORD_SIZE_IN_B),
-            username,
-            password,
-            certificateFingerprint,
-            hosts,
-            headers
+                buildOperationConverter(elementConverter),
+                Optional.ofNullable(getMaxBatchSize()).orElse(DEFAULT_MAX_BATCH_SIZE),
+                Optional
+                        .ofNullable(getMaxInFlightRequests())
+                        .orElse(DEFAULT_MAX_IN_FLIGHT_REQUESTS),
+                Optional.ofNullable(getMaxBufferedRequests()).orElse(DEFAULT_MAX_BUFFERED_REQUESTS),
+                Optional.ofNullable(getMaxBatchSizeInBytes()).orElse(DEFAULT_MAX_BATCH_SIZE_IN_B),
+                Optional.ofNullable(getMaxTimeInBufferMS()).orElse(DEFAULT_MAX_TIME_IN_BUFFER_MS),
+                Optional.ofNullable(getMaxRecordSizeInBytes()).orElse(DEFAULT_MAX_RECORD_SIZE_IN_B),
+                username,
+                password,
+                certificateFingerprint,
+                hosts,
+                headers,
+                isExceptionWhenFailed
         );
     }
 
     private OperationConverter<InputT> buildOperationConverter(
-        ElementConverter<InputT, BulkOperationVariant> converter
+            ElementConverter<InputT, BulkOperationVariant> converter
     ) {
         return converter != null ? new OperationConverter<>(converter) : null;
     }
@@ -196,6 +220,10 @@ public class Elasticsearch8AsyncSinkBuilder<InputT>
         @Override
         public Operation apply(T element, SinkWriter.Context context) {
             return new Operation(converter.apply(element, context));
+        }
+
+        public ElementConverter<T, BulkOperationVariant> getWrappedConverter() {
+            return this.converter;
         }
     }
 }

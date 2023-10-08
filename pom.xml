@@ -370,6 +370,7 @@ under the License.
 			<modules>
 				<module>flink-sql-connector-elasticsearch6</module>
 				<module>flink-sql-connector-elasticsearch7</module>
+				<module>flink-sql-connector-elasticsearch8</module>
 			</modules>
 		</profile>
 	</profiles>

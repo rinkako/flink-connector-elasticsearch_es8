@@ -29,12 +29,15 @@ import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
+import org.apache.flink.streaming.connectors.elasticsearch.table.RowElasticSearchSinkElementConverter;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient;
 import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
+import co.elastic.clients.elasticsearch.core.bulk.BulkOperationVariant;
+import co.elastic.clients.transport.endpoints.BooleanResponse;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.slf4j.Logger;
@@ -46,6 +49,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -60,6 +64,7 @@ public class Elasticsearch8AsyncWriter<InputT> extends AsyncSinkWriter<InputT, O
     private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch8AsyncWriter.class);
 
     private final ElasticsearchAsyncClient esClient;
+    private final boolean isExceptionWhenFailed;
 
     private boolean close = false;
 
@@ -89,6 +94,7 @@ public class Elasticsearch8AsyncWriter<InputT> extends AsyncSinkWriter<InputT, O
         String certificateFingerprint,
         List<HttpHost> httpHosts,
         List<Header> headers,
+        boolean isExceptionWhenFailed,
         Collection<BufferedRequestState<Operation>> state
     ) {
         super(
@@ -104,10 +110,30 @@ public class Elasticsearch8AsyncWriter<InputT> extends AsyncSinkWriter<InputT, O
                 .build(),
             state
         );
+        this.isExceptionWhenFailed = isExceptionWhenFailed;
 
         this.esClient = new NetworkConfig(httpHosts, username, password, headers, certificateFingerprint).create();
+        CompletableFuture<BooleanResponse> ping = esClient.ping();
+        try {
+            ping.get();
+        } catch (Exception e) {
+            throw new RuntimeException("cannot check es client since ping failed", e);
+        }
+
         final SinkWriterMetricGroup metricGroup = context.metricGroup();
         checkNotNull(metricGroup);
+
+        if (elementConverter instanceof Elasticsearch8AsyncSinkBuilder.OperationConverter) {
+            ElementConverter<InputT, BulkOperationVariant> wrappedConverter = ((Elasticsearch8AsyncSinkBuilder.OperationConverter<InputT>) elementConverter)
+                    .getWrappedConverter();
+            if (wrappedConverter instanceof RowElasticSearchSinkElementConverter) {
+                try {
+                    ((RowElasticSearchSinkElementConverter) wrappedConverter).open(context);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
 
         this.numRecordsOutErrorsCounter = metricGroup.getNumRecordsOutErrorsCounter();
     }
@@ -140,12 +166,17 @@ public class Elasticsearch8AsyncWriter<InputT> extends AsyncSinkWriter<InputT, O
         Consumer<List<Operation>> requestResult,
         Throwable error
     ) {
-        LOG.debug("The BulkRequest of {} operation(s) has failed.", requestEntries.size());
+        LOG.debug("The BulkRequest of " + requestEntries.size() + " operation(s) has failed.", error);
         numRecordsOutErrorsCounter.inc(requestEntries.size());
-
-         if (isRetryable(error.getCause())) {
-             requestResult.accept(requestEntries);
-         }
+        if (this.isExceptionWhenFailed) {
+            LOG.error("exception occurred when bulk, job will fail since failure handler is NoOp", error);
+            throw new RuntimeException("bulk failed at es8 sink", error);
+        } else {
+            // retry
+            if (isRetryable(error.getCause())) {
+                requestResult.accept(requestEntries);
+            }
+        }
     }
 
     private void handlePartiallyFailedRequest(
